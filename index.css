@@ -1,0 +1,31 @@
+/* afwpixelai custom styling */
+
+/* Pure white font for effect names */
+.vibrant-white {
+  color: #ffffff !important;
+}
+
+/* Normal style for effect buttons (no prominent border) */
+.effect-border {
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Normal sleek button style (replaces the block style) */
+.btn-block {
+  background: #ffffff;
+  color: #000000;
+  border: none;
+  font-weight: 700;
+  border-radius: 1rem;
+  transition: all 0.2s ease;
+}
+
+.btn-block:active {
+  transform: scale(0.98);
+  opacity: 0.9;
+}
+
+.btn-block:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
