@@ -166,22 +166,13 @@ const generateAiImage = async (originalBase64: string, effectId: string, customP
     const ai = new GoogleGenAI({ apiKey });
 
     const modelsToTry = [
+      'imagen-3.0-capability-001',
       'gemini-2.5-flash-image',
       'gemini-2.5-flash',
       'gemini-2.0-flash',
       'gemini-2.0-flash-exp',
-      'gemini-2.0-pro-exp-02-05',
-      'imagen-4.0-generate-001',
-      'imagen-4.0-fast-generate-001',
       'imagen-3.0-generate-001',
-      'imagen-3.0-fast-generate-001',
-      'gemini-1.5-flash-latest',
-      'gemini-1.5-flash',
-      'gemini-1.5-flash-8b',
-      'gemini-1.5-pro-latest',
-      'gemini-1.5-pro',
-      'gemini-pro-vision',
-      'gemini-1.0-pro-vision'
+      'imagen-4.0-generate-001'
     ];
 
     for (const modelName of modelsToTry) {
@@ -194,6 +185,9 @@ const generateAiImage = async (originalBase64: string, effectId: string, customP
               { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
               { text: finalPrompt }
             ]
+          },
+          config: {
+            systemInstruction: "You are an expert photorealistic AI photo editor. CRITICAL MANDATE: You MUST preserve 100% exact facial identity, eyes, nose, mouth, skin tone, facial direction, and expression from the uploaded reference photo. Do not turn the subject's face away from the camera. The subject MUST face the exact same direction as in the reference photo while executing the requested artistic outfit and scene."
           }
         });
 
@@ -323,21 +317,21 @@ const EffectCard: React.FC<EffectCardProps> = ({ effect, isSelected, onClick }) 
   <button
     onClick={onClick}
     className={`
-      flex flex-col items-center justify-center p-2 rounded-xl border transition-all duration-200 w-full aspect-square text-center group relative overflow-hidden
+      flex flex-col items-center justify-center p-2.5 rounded-xl border transition-all duration-200 w-full min-h-[75px] h-auto text-center group relative overflow-hidden shrink-0
       ${isSelected 
-        ? 'border-orange-500 bg-orange-900/20 shadow-md ring-1 ring-orange-500/50' 
-        : 'border-slate-700 bg-slate-800 hover:border-slate-600 hover:bg-slate-700'
+        ? 'border-orange-500 bg-orange-950/50 shadow-md ring-1 ring-orange-500/50' 
+        : 'border-slate-800 bg-slate-900 hover:border-slate-700 hover:bg-slate-800'
       }
     `}
-    title={effect.desc}
+    title={`${effect.name}: ${effect.desc}`}
   >
     <div className={`
-      w-8 h-8 rounded-lg flex items-center justify-center mb-1 text-md transition-colors
-      ${isSelected ? 'bg-orange-500 text-white' : 'bg-slate-700 text-slate-400 group-hover:bg-slate-600 group-hover:text-slate-200'}
+      w-7 h-7 rounded-lg flex items-center justify-center mb-1 text-xs transition-colors shrink-0
+      ${isSelected ? 'bg-orange-500 text-white' : 'bg-slate-800 text-slate-400 group-hover:bg-slate-700 group-hover:text-slate-200'}
     `}>
-      <i className={`fa-solid ${effect.icon}`}></i>
+      <i className={`fa-solid ${effect.icon || 'fa-palette'}`}></i>
     </div>
-    <h3 className={`font-bold text-[10px] leading-tight line-clamp-2 ${isSelected ? 'text-slate-200' : 'text-slate-400 group-hover:text-slate-300'}`}>
+    <h3 className={`font-bold text-[11px] leading-tight text-center px-0.5 truncate w-full ${isSelected ? 'text-orange-400' : 'text-slate-300 group-hover:text-slate-100'}`}>
       {effect.name}
     </h3>
   </button>
