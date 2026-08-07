@@ -616,6 +616,18 @@ const App = () => {
                   Save API Key
                 </button>
                 <button
+                  onClick={() => {
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    alert("Cache and LocalStorage cleared! Reloading page...");
+                    window.location.reload();
+                  }}
+                  className="px-4 py-3 bg-red-950/60 hover:bg-red-900/80 text-red-400 font-semibold rounded-xl border border-red-900/50 transition text-xs flex items-center gap-1"
+                  title="Clear LocalStorage & Cookies Cache"
+                >
+                  <i className="fa-solid fa-trash-can"></i> Clear Cache
+                </button>
+                <button
                   onClick={() => setIsSettingsOpen(false)}
                   className="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl transition text-sm"
                 >
@@ -865,17 +877,17 @@ const App = () => {
             </div>
 
             {/* Tools Sidebar (Right) */}
-            <div className="w-full lg:w-80 flex flex-col gap-4">
+            <div className="w-full lg:w-[400px] flex flex-col gap-4 shrink-0">
               <div className="bg-slate-900 rounded-2xl border border-slate-800 p-5 flex-1 flex flex-col shadow-lg">
                 <div className="mb-4 flex items-center justify-between">
                   <h3 className="font-bold text-slate-200">Select Effect</h3>
-                  <span className="text-xs bg-orange-900/50 text-orange-400 px-2 py-1 rounded-full font-medium border border-orange-900">
+                  <span className="text-xs bg-orange-900/50 text-orange-400 px-2.5 py-1 rounded-full font-medium border border-orange-900">
                     {EFFECTS_LIBRARY.length}
                   </span>
                 </div>
 
-                {/* 3-Column Grid for Effects */}
-                <div className="grid grid-cols-3 gap-2 overflow-y-auto pr-1 custom-scrollbar max-h-[500px] lg:max-h-[calc(100vh-250px)] content-start">
+                {/* 3-Column Spacious Grid for Effects */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 overflow-y-auto pr-1 custom-scrollbar max-h-[500px] lg:max-h-[calc(100vh-250px)] content-start">
                   {EFFECTS_LIBRARY.map((effect) => (
                     <EffectCard 
                       key={effect.id}
