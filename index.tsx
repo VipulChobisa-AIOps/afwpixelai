@@ -695,8 +695,19 @@ const generateAiImage = async (originalBase64: string, effectId: string, customP
     'gemini-2.5-flash-image',
     'gemini-2.5-flash',
     'gemini-2.0-flash',
+    'gemini-2.0-flash-exp',
+    'gemini-2.0-pro-exp-02-05',
     'imagen-4.0-generate-001',
-    'imagen-3.0-generate-001'
+    'imagen-4.0-fast-generate-001',
+    'imagen-3.0-generate-001',
+    'imagen-3.0-fast-generate-001',
+    'gemini-1.5-flash-latest',
+    'gemini-1.5-flash',
+    'gemini-1.5-flash-8b',
+    'gemini-1.5-pro-latest',
+    'gemini-1.5-pro',
+    'gemini-pro-vision',
+    'gemini-1.0-pro-vision'
   ];
 
   let lastError = null;
@@ -838,15 +849,15 @@ const EffectCard: React.FC<EffectCardProps> = ({ effect, isSelected, onClick }) 
   </button>
 );
 
-// --- Main App Component ---
+// --- Main Application ---
 
 const App = () => {
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [selectedEffectId, setSelectedEffectId] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isLoadingDemo, setIsLoadingDemo] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoadingDemo, setIsLoadingDemo] = useState(false);
   const [isComparing, setIsComparing] = useState(false);
   
   const [customPromptText, setCustomPromptText] = useState("");
@@ -972,11 +983,44 @@ const App = () => {
     }
   };
 
-  const handleDownload = () => {
-    if (resultImage) {
+  const handleDownload = async () => {
+    const targetImage = resultImage || originalImage;
+    if (!targetImage) return;
+
+    const filename = `afwPixelAi_${Date.now()}.png`;
+
+    try {
+      // 1. Native Capacitor Filesystem save if running as native app
+      if ((window as any).Capacitor?.isNativePlatform?.()) {
+        const base64Data = targetImage.includes(',') ? targetImage.split(',')[1] : targetImage;
+        const savedFile = await Filesystem.writeFile({
+          path: filename,
+          data: base64Data,
+          directory: Directory.Documents
+        });
+        alert(`Image saved successfully to Documents folder: ${savedFile.uri}`);
+        return;
+      }
+
+      // 2. Web Browser Blob Download
+      const res = await fetch(targetImage);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+
       const link = document.createElement("a");
-      link.href = resultImage;
-      link.download = `afwPixelAi_${Date.now()}.png`;
+      link.href = blobUrl;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+    } catch (err) {
+      console.error("Download failed, using direct link fallback:", err);
+      const link = document.createElement("a");
+      link.href = targetImage;
+      link.download = filename;
+      link.target = "_blank";
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
