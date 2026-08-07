@@ -13,8 +13,9 @@ const APP_CONFIG = {
 };
 
 const PROMPT_TEMPLATES = {
-  identity: "keep the same face and face direction reference image, maintain subject identity. Using the uploaded image, generate a hyper-realistic photography portrait while keeping the original face, expressions, and natural features completely unchanged.",
-  lens: "keep the same face as reference image, hair style and face direction reference image, maintain subject identity. To create a portrait with a telephoto lens, use a focal length between 85mm and 200mm to compress features and achieve a pleasing background blur (bokeh). Note: I hope your generated image is genuine based on authentic realworld sources and benchmarks as per best photographers, also it should be competitive to best of 0.1% generative models research quaries.",
+  identityHeader: "keep the same face and face direction reference image, maintain subject identity. Using the uploaded image of the person, generate a hyper-realistic person photography portrait while keeping the person's original face, expressions, and natural features completely unchanged.",
+  identityFooter: "keep the same face as reference image, hair style and face direction reference image, maintain subject identity.",
+  lens: "To create a portrait with a telephoto lens, use a focal length between 85mm and 200mm to compress features and achieve a pleasing background blur (bokeh).\n\nNote: I hope your generated image is genuine based on authentic realworld sources and benchmarks as per best photographers, also it should be competitive to best of 0.1% generative models research quaries.",
   restoration: `Restore and complete this old, torn, incomplete photograph with extreme realism and emotional accuracy.
 Detect and reconstruct missing facial features and body parts perfectly, preserving identity, bone structure, proportions, and natural expression.
 Maintain original skin tone, natural texture, wrinkles, imperfections, historical clothing, background, and emotional warmth.
@@ -159,7 +160,10 @@ const generateAiImage = async (originalBase64: string, effectId: string, customP
     finalPrompt = `${PROMPT_TEMPLATES.identityHeader}\n\n${effect.desc}\n\n${PROMPT_TEMPLATES.identityFooter}\n\n${PROMPT_TEMPLATES.lens}`;
   }
 
-  const base64Data = originalBase64.split(',')[1];
+  const base64Data = originalBase64.includes(',') ? originalBase64.split(',')[1] : originalBase64;
+  const mimeType = originalBase64.includes(';') 
+    ? originalBase64.substring(originalBase64.indexOf(':') + 1, originalBase64.indexOf(';')) 
+    : 'image/jpeg';
 
   // 1. Try Direct Google GenAI Client-Side SDK if API Key is present
   if (apiKey) {
@@ -182,11 +186,12 @@ const generateAiImage = async (originalBase64: string, effectId: string, customP
           model: modelName,
           contents: {
             parts: [
-              { inlineData: { mimeType: 'image/jpeg', data: base64Data } },
+              { inlineData: { mimeType: mimeType, data: base64Data } },
               { text: finalPrompt }
             ]
           },
           config: {
+            responseModalities: ["IMAGE", "TEXT"],
             systemInstruction: "You are an expert photorealistic AI photo editor. CRITICAL MANDATE: You MUST preserve 100% exact facial identity, eyes, nose, mouth, skin tone, facial direction, and expression from the uploaded reference photo. Do not turn the subject's face away from the camera. The subject MUST face the exact same direction as in the reference photo while executing the requested artistic outfit and scene."
           }
         });
