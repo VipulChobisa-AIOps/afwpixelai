@@ -1,45 +1,44 @@
 # afwpixelai
-**Mobile AI Image Processing & Pixel Analytics Engine**
 
-`afwpixelai` is a mobile application developed in **Android Studio** using **Java** and **Kotlin**. It is designed to perform on-device edge image analytics, rendering, and classification. By doing the computer vision processing on the client's device, the app avoids network latency and ensures data privacy.
+> **Cross-Platform Mobile AI Image Editing & Pixel Analytics Engine**
+
+`afwpixelai` is a cross-platform mobile application built with **React 19**, **TypeScript**, and **Capacitor** (targeting Android & iOS). It delivers on-device image processing, AI-driven filter applications, and in-app subscription monetization powered by RevenueCat & Firebase.
 
 ---
 
 ## 🛠️ Technology Stack
-*   **IDE**: Android Studio
-*   **Languages**: Kotlin, Java (for legacy native rendering modules)
-*   **UI Framework**: Jetpack Compose (modern declarative layout)
-*   **Threading**: Kotlin Coroutines & Flow (for async pixel manipulation)
-*   **Local Caching**: Room DB (storing metadata and user preferences)
-*   **Core Libraries**: CameraX (camera API integration), OpenCV Android SDK (for pixel filters and matrix convolutions)
+
+| Layer | Technology |
+|---|---|
+| **Core Framework** | React 19, TypeScript |
+| **Mobile Runtime** | Capacitor 8 (Android & iOS native bridge) |
+| **Build Tool** | Vite 6 |
+| **AI Integration** | Google Gemini API (`@google/genai`) |
+| **Monetization & In-App Purchases** | RevenueCat (`@revenuecat/purchases-capacitor`) |
+| **Authentication & Storage** | Firebase Auth & Firestore |
+| **Asset Compression** | JSZip |
 
 ---
 
 ## 🌟 Core Features
 
-1.  **Real-Time Camera Convolutions**: Captures pixel matrices through CameraX and applies real-time edge, blur, and sharpening convolutions directly on the GPU.
-2.  **Color Histogram Extraction**: Computes RGB channel histograms dynamically, displaying color profiles of the frame in real time.
-3.  **Local Image Classification**: Uses a lightweight native neural model to catalog and tag images into user galleries offline.
-4.  **Batch Processing**: Allows selecting multiple photos from the gallery to run automated metadata extraction and tag editing.
+1. **AI Image Enhancer & Filter Engine**: Interactive image filtering and pixel manipulation routines.
+2. **Capacitor Native Bridge**: Native mobile filesystem access, native sharing (`@capacitor/share`), and native device camera capabilities.
+3. **RevenueCat In-App Purchases**: Full integration with RevenueCat SDK for handling freemium tiers (₹99/mo, ₹599/yr) and subscription paywalls.
+4. **Offline & Cloud Sync**: Firebase Auth integration with offline metadata handling.
 
 ---
 
-## 📐 Architecture
-
-The project follows the standard **MVVM (Model-View-ViewModel)** architectural pattern recommended by Google, coupled with Clean Architecture concepts:
+## 📐 Architecture & Structure
 
 ```
-/src/main/java/com/unolo/afwpixelai
-├── data/
-│   ├── local/          # Room Database & Shared Preferences
-│   └── repository/     # Data sources coordinators
-├── domain/
-│   ├── model/          # Pure entity models
-│   └── usecase/        # Business logic rules (e.g. ApplyFilterUseCase)
-├── presentation/
-│   ├── viewmodel/      # UI State holders
-│   └── ui/             # Composed views, screens, and custom canvases
-└── utils/              # Pixel manipulation helpers (JNI calls)
+afwpixelai/
+├── index.tsx                  # Root application & canvas image engine
+├── subscriptionService.ts      # RevenueCat in-app purchase manager
+├── effects_90.json            # Preset filter & matrix definitions
+├── capacitor.config.ts        # Capacitor mobile project configuration
+├── src/                       # Component modules & utilities
+└── package.json
 ```
 
 ---
@@ -47,15 +46,27 @@ The project follows the standard **MVVM (Model-View-ViewModel)** architectural p
 ## 🚀 Getting Started
 
 ### Prerequisites
-*   Android Studio Ladybug (2024.2.1+) or newer.
-*   Android SDK Platform 34 (Android 14) or newer.
-*   JDK 17.
+* Node.js 18+
+* Android Studio (if building native APK via Capacitor)
 
-### Installation
-1.  Clone the repository:
-    ```bash
-    git clone https://github.com/VipulChobisa_AIOps/afwpixelai.git
-    ```
-2.  Open the project in Android Studio.
-3.  Sync project with Gradle files.
-4.  Build and run on an Android Device or Emulator.
+### Installation & Local Run
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/VipulChobisa-AIOps/afwpixelai.git
+   cd afwpixelai
+   ```
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
+3. Run the development web preview:
+   ```bash
+   npm run dev
+   ```
+4. Build and sync to Android (via Capacitor):
+   ```bash
+   npm run build
+   npx cap sync android
+   npx cap open android
+   ```
+
