@@ -13,8 +13,9 @@ const APP_CONFIG = {
 };
 
 const PROMPT_TEMPLATES = {
-  identity: "keep the same face and face direction reference image, maintain subject identity. Using the uploaded image, generate a hyper-realistic photography portrait while keeping the original face, expressions, and natural features completely unchanged.",
-  lens: "keep the same face as reference image, hair style and face direction reference image, maintain subject identity. To create a portrait with a telephoto lens, use a focal length between 85mm and 200mm to compress features and achieve a pleasing background blur (bokeh). Note: I hope your generated image is genuine based on authentic realworld sources and benchmarks as per best photographers, also it should be competitive to best of 0.1% generative models research quaries.",
+  identityHeader: `"keep the same face and face direction reference image, maintain subject identity."\n\n"Using the uploaded image of the person, generate a hyper-realistic person photography portrait while keeping the person's original face, expressions, and natural features completely unchanged"`,
+  identityFooter: `"keep the same face as reference image, hair style and face direction reference image, maintain subject identity"`,
+  lens: `To create a portrait with a telephoto lens, use a focal length between 85mm and 200mm to compress features and achieve a pleasing background blur (bokeh)\n\nNote- "I hope your generated image is genuine based on authentic realworld sources and benchmarks as per best photographers, also it should be competitive to best of 0.1% generative models research quaries."`,
   restoration: `Restore and complete this old, torn, incomplete photograph with extreme realism and emotional accuracy.
 Detect and reconstruct missing facial features and body parts perfectly, preserving identity, bone structure, proportions, and natural expression.
 Maintain original skin tone, natural texture, wrinkles, imperfections, historical clothing, background, and emotional warmth.
@@ -157,9 +158,10 @@ const generateAiImage = async (originalBase64: string, effectId: string, customP
   if (effect.id === 'restoration') {
     finalPrompt = PROMPT_TEMPLATES.restoration;
   } else if (effect.id === 'custom_prompt') {
-    finalPrompt = `${PROMPT_TEMPLATES.identity} ${PROMPT_TEMPLATES.lens} Edit this image as follows: ${customPromptText || "Enhance the image"}`;
+    const customDesc = customPromptText || "Enhance the image";
+    finalPrompt = `${PROMPT_TEMPLATES.identityHeader}\n\n${customDesc}\n\n${PROMPT_TEMPLATES.identityFooter}\n\n${PROMPT_TEMPLATES.lens}`;
   } else {
-    finalPrompt = `${PROMPT_TEMPLATES.identity} ${PROMPT_TEMPLATES.lens} Edit this image as follows: ${effect.desc}`;
+    finalPrompt = `${PROMPT_TEMPLATES.identityHeader}\n\n${effect.desc}\n\n${PROMPT_TEMPLATES.identityFooter}\n\n${PROMPT_TEMPLATES.lens}`;
   }
 
   const base64Data = originalBase64.split(',')[1];
