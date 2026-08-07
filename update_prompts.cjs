@@ -1,6 +1,6 @@
 const fs = require('fs');
-
-const indexFile = 'C:\\Users\\vipul\\.gemini\\antigravity\\scratch\\afwpixelai\\index.tsx';
+const path = require('path');
+const indexFile = path.join(__dirname, 'index.tsx');
 let content = fs.readFileSync(indexFile, 'utf8');
 
 const newPromptTemplates = `const PROMPT_TEMPLATES = {
