@@ -262,7 +262,7 @@ const Logo = ({ customSrc }: { customSrc?: string | null }) => {
     );
 };
 
-const Header = ({ customLogo }: { customLogo?: string | null }) => (
+const Header = ({ customLogo, onOpenSettings, hasApiKey }: { customLogo?: string | null; onOpenSettings: () => void; hasApiKey: boolean }) => (
   <header className="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50">
     <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
       <div className="flex items-center gap-2">
@@ -278,9 +278,20 @@ const Header = ({ customLogo }: { customLogo?: string | null }) => (
           </span>
         </div>
       </div>
-      <div className="hidden sm:flex items-center gap-4 text-xs font-medium text-slate-400">
-        <span><i className="fa-solid fa-shield-halved mr-1 text-slate-600"></i>Identity Lock™</span>
-        <span><i className="fa-solid fa-camera mr-1 text-slate-600"></i>Cinematic Lens</span>
+      <div className="flex items-center gap-3">
+        <div className="hidden sm:flex items-center gap-4 text-xs font-medium text-slate-400 border-r border-slate-800 pr-4">
+          <span><i className="fa-solid fa-shield-halved mr-1 text-slate-600"></i>Identity Lock™</span>
+          <span><i className="fa-solid fa-camera mr-1 text-slate-600"></i>Cinematic Lens</span>
+        </div>
+        <button
+          onClick={onOpenSettings}
+          className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 px-3 py-2 rounded-xl text-xs font-semibold border border-slate-700 transition shadow-sm active:scale-95"
+          title="API Key Settings"
+        >
+          <i className="fa-solid fa-gear text-orange-400 text-sm"></i>
+          <span className="hidden sm:inline">Settings</span>
+          <span className={`w-2 h-2 rounded-full ${hasApiKey ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]' : 'bg-amber-400 animate-pulse'}`}></span>
+        </button>
       </div>
     </div>
   </header>
@@ -341,12 +352,29 @@ const App = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoadingDemo, setIsLoadingDemo] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [apiKeyInput, setApiKeyInput] = useState(() => localStorage.getItem('gemini_api_key') || "");
+  const [hasApiKey, setHasApiKey] = useState(() => !!(localStorage.getItem('gemini_api_key') || process.env.API_KEY || process.env.GEMINI_API_KEY));
   const [isComparing, setIsComparing] = useState(false);
   
   const [customPromptText, setCustomPromptText] = useState("");
   const [customLogo, setCustomLogo] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSaveApiKey = () => {
+    const trimmed = apiKeyInput.trim();
+    if (trimmed) {
+      localStorage.setItem('gemini_api_key', trimmed);
+      setHasApiKey(true);
+      alert("Gemini API Key saved successfully!");
+    } else {
+      localStorage.removeItem('gemini_api_key');
+      setHasApiKey(false);
+      alert("API Key removed. Client-side SDK calls will now rely on backend server.");
+    }
+    setIsSettingsOpen(false);
+  };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -544,7 +572,66 @@ const App = () => {
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-950 font-sans text-slate-200 selection:bg-orange-500 selection:text-white">
-      <Header customLogo={customLogo} />
+      <Header customLogo={customLogo} onOpenSettings={() => setIsSettingsOpen(true)} hasApiKey={hasApiKey} />
+
+      {/* Settings Modal */}
+      {isSettingsOpen && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl relative">
+            <button
+              onClick={() => setIsSettingsOpen(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-white w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center transition"
+            >
+              <i className="fa-solid fa-xmark"></i>
+            </button>
+
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center text-lg border border-orange-500/30">
+                <i className="fa-solid fa-key"></i>
+              </div>
+              <div>
+                <h3 className="text-xl font-bold text-slate-100">Gemini API Key Settings</h3>
+                <p className="text-xs text-slate-400">Configure your Google Gemini API Key for image generation</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-300 mb-2">
+                  Gemini API Key
+                </label>
+                <input
+                  type="password"
+                  value={apiKeyInput}
+                  onChange={(e) => setApiKeyInput(e.target.value)}
+                  placeholder="AIzaSy..."
+                  className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm font-mono"
+                />
+              </div>
+
+              <div className="bg-slate-800/60 rounded-xl p-3 border border-slate-700/50 text-xs text-slate-400 space-y-1">
+                <p><i className="fa-solid fa-circle-info text-blue-400 mr-1"></i> Your key is saved locally in your browser (`localStorage`).</p>
+                <p>Don't have a key? <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-orange-400 underline font-semibold hover:text-orange-300">Get a free key from Google AI Studio</a>.</p>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={handleSaveApiKey}
+                  className="flex-1 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold rounded-xl shadow-lg hover:from-orange-600 hover:to-red-600 transition active:scale-95 text-sm"
+                >
+                  Save API Key
+                </button>
+                <button
+                  onClick={() => setIsSettingsOpen(false)}
+                  className="px-5 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl transition text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <main className="flex-1 max-w-5xl mx-auto w-full p-4 md:p-6 flex flex-col">
         
