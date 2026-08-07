@@ -2,776 +2,1297 @@ import React, { useState, useRef, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { GoogleGenAI } from "@google/genai";
 import JSZip from "jszip";
-const logo = "https://placehold.co/128x128?text=afw";
-import { Filesystem, Directory } from '@capacitor/filesystem';
-
-import { Share } from '@capacitor/share';
-import "./index.css";
 
 // --- Configuration & Constants ---
 
 const APP_CONFIG = {
   appName: "afwPixelAi",
-  version: "1.5.2",
+  version: "1.4.5",
   msmeRegistration: "UDYAM-RJ-14-0018404",
   poweredBy: "Askforwrite Digital",
-  email: "info@askforwrite.com",
-  website: "www.askforwrite.com",
-  upiId: "vipulchobisa@okicici",
 };
 
 const PROMPT_TEMPLATES = {
-  identity: "Keep the same face, hair style, and face direction as the reference image. Maintain subject identity completely unchanged. Generate a hyper-realistic photography portrait while keeping original face, expressions, and natural features completely unchanged.",
-  lens: "To create a portrait with a telephoto lens, use a focal length between 85mm and 200mm to compress features and achieve a pleasing background blur (bokeh). Note: Ensure the generated image is genuine based on authentic real-world sources and benchmarks as per best photographers, and is competitive to the best of 0.1% generative models research queries.",
-  restoration: "Professional high-end photo restoration, fix scratches, denoise, sharpen, color correct, maintain original details and perfect face/body identity, hyper-realistic, 8k."
+  identity: "keep the same face, age, and face direction reference image, maintain subject identity. Using the uploaded image, generate a hyper-realistic photography portrait while keeping the subject's original face, age, expressions, and natural features completely unchanged. Do not change the person's age; preserve it exactly as seen in the reference image.",
+  lens: "keep the same face as reference image, hair style and face direction reference image, maintain subject identity. To create a portrait with a telephoto lens, use a focal length between 85mm and 200mm to compress features and achieve a pleasing background blur (bokeh). Note: The generated image should be genuine based on authentic realworld sources and benchmarks as per best photographers, also it should be competitive to best of 0.1% generative models research queries.",
+  restoration: "Professional high-end photo restoration, fix scratches, denoise, sharpen, color correct, maintain original details and face identity, hyper-realistic, 8k."
 };
 
 const EFFECTS_LIBRARY = [
-  { id: "effect_1", name: "Venetian Red", desc: "The subject wearing a Venetian red dress with delicate white lace kneeling beneath an ancient oak tree at golden hour.", icon: "fa-tree", type: "artistic", category: "Cinematic" },
-  { id: "effect_2", name: "Meadow Run", desc: "The subject with hair flowing freely, smiles radiantly whilst playfully running through a multicolored meadow.", icon: "fa-sun", type: "artistic", category: "Cinematic" },
-  { id: "effect_3", name: "Wildflower Bliss", desc: "The subject with flowing hair stands amidst a kaleidoscope of wildflowers, basking in golden light.", icon: "fa-leaf", type: "artistic", category: "Cinematic" },
-  { id: "effect_4", name: "Rembrandt Folk", desc: "Traditional brown folk attire, holding a white flower, Rembrandt's signature lighting, Prussian blue background.", icon: "fa-palette", type: "artistic", category: "Cinematic" },
-  { id: "effect_5", name: "Ballet Dedication", desc: "The subject as a ballet dancer in a vivid red leotard against a dark chalkboard backdrop.", icon: "fa-star", type: "artistic", category: "Cinematic" },
-  { id: "effect_6", name: "Weightless Leap", desc: "The subject performing a stunning leap, light playing off her tutu against a muted background.", icon: "fa-person-running", type: "artistic", category: "Cinematic" },
-  { id: "effect_7", name: "Flamenco Swirl", desc: "Swirl of motion, flamenco-inspired outfit in red and black, hair flowing with passion.", icon: "fa-fan", type: "artistic", category: "Cinematic" },
-  { id: "effect_8", name: "Rainbow Tutu", desc: "Twirling in a rainbow-hued outfit under warm, ambient lighting.", icon: "fa-child-reaching", type: "artistic", category: "Cinematic" },
-  { id: "effect_9", name: "Dandelion Dance", desc: "Twirling in a meadow with a rainbow tutu and soft glimmer of floating dandelions.", icon: "fa-wind", type: "artistic", category: "Cinematic" },
-  { id: "effect_10", name: "Spring Jubilation", desc: "Arms up in jubilation amidst a field of blooming flowers and springtime splendor.", icon: "fa-seedling", type: "artistic", category: "Cinematic" },
-  { id: "effect_11", name: "Water Splash", desc: "Arms raised high, playing in a water park with splashes enveloping the subject in a red outfit.", icon: "fa-water", type: "artistic", category: "Cinematic" },
-  { id: "effect_12", name: "Poolside Joy", desc: "Raising arms amidst the sparkling waters of a lively pool under a golden glow.", icon: "fa-droplet", type: "artistic", category: "Cinematic" },
-  { id: "effect_13", name: "Summer Droplets", desc: "Playing in water as sunlight filters through droplets, creates sparkling highlights.", icon: "fa-sun", type: "artistic", category: "Cinematic" },
-  { id: "effect_14", name: "Playground Smile", desc: "Orange jacket playing on a vividly painted slide, radiating happiness.", icon: "fa-play", type: "artistic", category: "Cinematic" },
-  { id: "effect_15", name: "Kite Sky", desc: "Soft sand beach, flying a vibrant kite under a vast clear sky with gentle sea breeze.", icon: "fa-umbrella-beach", type: "artistic", category: "Cinematic" },
-  { id: "effect_16", name: "Kite Festival", desc: "Dashing through a vibrant kite festival with a sky mosaic of colors.", icon: "fa-cloud", type: "artistic", category: "Cinematic" },
-  { id: "effect_17", name: "Fairground Adventure", desc: "Bustling amusement park, eyes sparkling with the wonder of whimsical surroundings.", icon: "fa-icons", type: "artistic", category: "Cinematic" },
-  { id: "effect_18", name: "Carousel Magic", desc: "Perched atop an ornately decorated carousel horse with a whimsical backdrop.", icon: "fa-horse-head", type: "artistic", category: "Cinematic" },
-  { id: "effect_19", name: "Orange Slide", desc: "Sliding down a vibrant orange slide with hands raised in excitement.", icon: "fa-play", type: "artistic", category: "Cinematic" },
-  { id: "effect_20", name: "Meadow Sisters", desc: "Two people dancing in a tranquil meadow bathed in golden sunlight.", icon: "fa-user-group", type: "artistic", category: "Cinematic" },
-  { id: "effect_21", name: "Dappled Path", desc: "Holding hands and running through a sun-dappled path surrounded by SQL-powered imagery.", icon: "fa-person-hiking", type: "artistic", category: "Cinematic" },
-  { id: "effect_22", name: "Butterfly Night", desc: "Starlit sky, gazing at a lamppost light attracting a magnificent butterfly.", icon: "fa-bug", type: "artistic", category: "Cinematic" },
-  { id: "effect_23", name: "Golden Umbrella", desc: "Tranquil evening walk under a lamppost with a vibrant umbrella and whimsical butterflies.", icon: "fa-umbrella", type: "artistic", category: "Cinematic" },
-  { id: "effect_24", name: "Mystical Evening", desc: "Whimsical creature with monarch wings resting against an old-fashioned lamppost.", icon: "fa-dragon", type: "artistic", category: "Cinematic" },
-  { id: "effect_25", name: "Firefly Jar", desc: "Holding a jar of fireflies amidst twilight with a fairy-tale luminescence.", icon: "fa-lightbulb", type: "artistic", category: "Cinematic" },
-  { id: "effect_26", name: "Magic Box", desc: "Opening a gift with golden sparkles spilling out near a Christmas tree.", icon: "fa-gift", type: "artistic", category: "Cinematic" },
-  { id: "effect_27", name: "Tiny Village", desc: "Exploring a toy village on a table in a lush garden at sunset.", icon: "fa-house-chimney", type: "artistic", category: "Cinematic" },
-  { id: "effect_28", name: "Ribbon Park", desc: "Dancing with colorful ribbons forming a radiant display in the evening light.", icon: "fa-ribbon", type: "artistic", category: "Cinematic" },
-  { id: "effect_29", name: "Rainbow Ribbon", desc: "Twirling a rainbow-colored ribbon in a grassy field with golden hue.", icon: "fa-ribbon", type: "artistic", category: "Cinematic" },
-  { id: "effect_30", name: "Castle Focus", desc: "Deeply absorbed in constructing an elaborate sandcastle fortress.", icon: "fa-fort-awesome", type: "artistic", category: "Cinematic" },
-  { id: "effect_31", name: "Beach Duo", desc: "Building a magnificent sandcastle on a pristine beach under clear blue skies.", icon: "fa-mountain-sun", type: "artistic", category: "Adventure" },
-  { id: "effect_32", name: "Storybook Sand", desc: "Bucket hat, building detailed sandcastles with friends on a vibrant beach.", icon: "fa-bucket", type: "artistic", category: "Adventure" },
-  { id: "effect_33", name: "Candlelight Night", desc: "Twilight pool with lily pads, glowing candles, and scattered starfish.", icon: "fa-fire-flame-curved", type: "artistic", category: "Adventure" },
-  { id: "effect_34", name: "Lantern Parade", desc: "Lantern festival, leading a playful procession with a glowing lantern.", icon: "fa-paper-plane", type: "artistic", category: "Adventure" },
-  { id: "effect_35", name: "Tall Grass Race", desc: "Running through tall grass at sunset with friends, feeling spontaneity.", icon: "fa-leaf", type: "artistic", category: "Adventure" },
-  { id: "effect_36", name: "Summer Lantern", desc: "Running through a tall grassy field with a glowing orange lantern.", icon: "fa-bolt-lightning", type: "artistic", category: "Adventure" },
-  { id: "effect_37", name: "Cultural Twirl", desc: "Colorful cultural attire with intricate patterns and vibrant feathers.", icon: "fa-feather", type: "artistic", category: "Adventure" },
-  { id: "effect_38", name: "Wishful Cake", desc: "Blowing out birthday candles atop a festively adorned cake.", icon: "fa-cake-candles", type: "artistic", category: "Adventure" },
-  { id: "effect_39", name: "Bday Sprinkles", desc: "Party hat, sprinkle-covered birthday cake, rainbow of balloons.", icon: "fa-birthday-cake", type: "artistic", category: "Adventure" },
-  { id: "effect_40", name: "Anticipation", desc: "Closing eyes to make a wish over a sprinkle-covered cake with friends.", icon: "fa-face-grin-stars", type: "artistic", category: "Adventure" },
-  { id: "effect_41", name: "Evening Field", desc: "Running through tall grass with a glowing orange lantern and silhouettes of children.", icon: "fa-mountain", type: "artistic", category: "Adventure" },
-  { id: "effect_42", name: "Treehouse Pals", desc: "With a fluffy white dog on a blanket near an enchanting treehouse.", icon: "fa-house", type: "artistic", category: "Adventure" },
-  { id: "effect_43", name: "Garden Tea Party", desc: "Tea party with a dog, ceramic mugs, and pink blossoms near a playhouse.", icon: "fa-mug-hot", type: "artistic", category: "Adventure" },
-  { id: "effect_44", name: "Companion Tutu", desc: "Pink tutu dress, sharing a moment with a fluffy dog under a treehouse.", icon: "fa-dog", type: "artistic", category: "Cinematic" },
-  { id: "effect_45", name: "Heather Fields", desc: "The subject seated in heather with a golden-furred dog under overcast skies.", icon: "fa-paw", type: "artistic", category: "Adventure" },
-  { id: "effect_46", name: "Golden Retriever", desc: "The subject leaning closely behind a golden retriever in a field at golden hour.", icon: "fa-bone", type: "artistic", category: "Adventure" },
-  { id: "effect_47", name: "Starlight Jar", desc: "Jar brimming with golden lights dancing like tiny stars in the dark.", icon: "fa-star-and-crescent", type: "artistic", category: "Adventure" },
-  { id: "effect_48", name: "Midsummer Glow", desc: "Holding a jar with golden light reflecting in the eyes at twilight.", icon: "fa-moon", type: "artistic", category: "Adventure" },
-  { id: "effect_49", name: "Style Flow", desc: "Twirling outdoors in a colorful, flowing outfit amongst meadow wildflowers.", icon: "fa-wind", type: "artistic", category: "Adventure" },
-  { id: "effect_50", name: "Folk Harmonies", desc: "Traditional dance in a flowing outfit and a guitar player in the background.", icon: "fa-guitar", type: "artistic", category: "Adventure" },
-  { id: "effect_51", name: "Embroidered Joy", desc: "Traditional red outfit with floral embroidery, twirling in mid-festival.", icon: "fa-shirt", type: "artistic", category: "Adventure" },
-  { id: "effect_52", name: "Festival Lights", desc: "Dance celebration in the evening glow with colorful traditional attire.", icon: "fa-lightbulb", type: "artistic", category: "Adventure" },
-  { id: "effect_53", name: "Vibrant Flare", desc: "Mid-twirl with a multicolored dress flaring out in soft lighting.", icon: "fa-compass-drafting", type: "artistic", category: "Adventure" },
-  { id: "effect_54", name: "Studio Rainbow", desc: "Spinning in a colorful outfit that fans out like a rainbow in a sunlit studio.", icon: "fa-rainbow", type: "artistic", category: "Adventure" },
-  { id: "effect_55", name: "Shadow Waltz", desc: "The subject in a white outfit, shadow playing on a checkered floor in sunlight.", icon: "fa-user", type: "artistic", category: "Adventure" },
-  { id: "effect_56", name: "Peach Grace", desc: "Mid-air ballet leap in a peach outfit with focused determination.", icon: "fa-person-walking", type: "artistic", category: "Adventure" },
-  { id: "effect_57", name: "Fairy Lights", desc: "The subject poised by a ballet barre under hanging fairy lights in a dreamlike glow.", icon: "fa-wand-sparkles", type: "artistic", category: "Adventure" },
-  { id: "effect_58", name: "Chandelier Waltz", desc: "The subject in a pink outfit in a studio with glowing chandeliers and mirror-lined walls.", icon: "fa-gem", type: "artistic", category: "Adventure" },
-  { id: "effect_59", name: "Confetti Stroll", desc: "Strolling through balloons and confetti with delight.", icon: "fa-face-grin-beam", type: "artistic", category: "Adventure" },
-  { id: "effect_60", name: "Sunflower Cone", desc: "Sunflower in hair, holding an ice cream cone in the sun's soft glow.", icon: "fa-ice-cream", type: "artistic", category: "Adventure" },
-  { id: "effect_61", name: "Stained Glass", desc: "The subject with a flower crown, holding an ornate book in a place of worship.", icon: "fa-church", type: "artistic", category: "Beauty" },
-  { id: "effect_62", name: "Gusto Soul", desc: "Singing with passion during a communal cultural festival.", icon: "fa-microphone", type: "artistic", category: "Beauty" },
-  { id: "effect_63", name: "Berry Harvest", desc: "Holding a basket of luscious strawberries on a sunny summer day.", icon: "fa-basket-shopping", type: "artistic", category: "Beauty" },
-  { id: "effect_64", name: "Window Rose", desc: "Flowing dusty rose outfit by a window with ethereal golden light.", icon: "fa-window-maximize", type: "artistic", category: "Beauty" },
-  { id: "effect_65", name: "Candy Floss", desc: "Holding a massive stick of candy floss amidst fairground lights.", icon: "fa-candy-cane", type: "artistic", category: "Beauty" },
-  { id: "effect_66", name: "Carousel Gaze", desc: "Clinging to a bright carousel pole with a background of carnival lights.", icon: "fa-circle-dot", type: "artistic", category: "Beauty" },
-  { id: "effect_67", name: "Watermelon Slice", desc: "Savoring watermelon in a garden with dappled shadows and water droplets.", icon: "fa-lemon", type: "artistic", category: "Beauty" },
-  { id: "effect_68", name: "Heritage Bloom", desc: "A vivid traditional palette with a flower headdress for cultural connection.", icon: "fa-clover", type: "artistic", category: "Beauty" },
-  { id: "effect_69", name: "Princess Birthday", desc: "Glittering crown and birthday number amidst garden presents.", icon: "fa-crown", type: "artistic", category: "Beauty" },
-  { id: "effect_70", name: "Rope Swing", desc: "Beaming and swinging beneath a canopy of green leaves in the sun.", icon: "fa-link", type: "artistic", category: "Beauty" },
-  { id: "effect_71", name: "Balloon Dance", desc: "Lifting arms in delight with a cluster of balloons.", icon: "fa-parachute-box", type: "artistic", category: "Beauty" },
-  { id: "effect_72", name: "Amber Laughter", desc: "Golden hour mid-twirl with warm amber tones and subtle teal shadows.", icon: "fa-masks-theater", type: "artistic", category: "Beauty" },
-  { id: "effect_73", name: "Abandon Twirl", desc: "Dynamic motion in a coral outfit against a dreamy sky blue background.", icon: "fa-wind", type: "artistic", category: "Beauty" },
-  { id: "effect_74", name: "Jubilant Chase", desc: "Laughing and charging forward in a golden hour field.", icon: "fa-person-running", type: "artistic", category: "Beauty" },
-  { id: "effect_75", name: "Hug the World", desc: "Arms open wide in a blooming field, soaking in the sun and wildflowers.", icon: "fa-child-reaching", type: "artistic", category: "Beauty" },
-  { id: "effect_76", name: "Trusting Steed", desc: "The subject gently touching a majestic horse in a serene countryside at dusk.", icon: "fa-horse", type: "artistic", category: "Beauty" },
-  { id: "effect_77", name: "Rural Harmony", desc: "The subject in serene connection with a horse shimmering in the sunset light.", icon: "fa-hat-cowboy", type: "artistic", category: "Beauty" },
-  { id: "effect_78", name: "High Swing", desc: "Soaring upward on a swing at sunset.", icon: "fa-arrows-to-eye", type: "artistic", category: "Beauty" },
-  { id: "effect_79", name: "Sunflower Gold", desc: "Delight among towering sunflowers during the golden hour.", icon: "fa-sun", type: "artistic", category: "Beauty" },
-  { id: "effect_80", name: "Single Bubble", desc: "Standing in a mosaic of wildflowers blowing a single glimmering bubble.", icon: "fa-soap", type: "artistic", category: "Beauty" },
-  { id: "effect_81", name: "Wind-Swept", desc: "Long hair swept by a soft breeze in an untamed meadow at sunset.", icon: "fa-wind", type: "artistic", category: "Beauty" },
-  { id: "effect_82", name: "Flower Haze", desc: "Infectious laugh amidst a field of flowers, welcoming the beauty.", icon: "fa-leaf", type: "artistic", category: "Beauty" },
-  { id: "effect_83", name: "Grass Dash", desc: "Running toward the camera through tall grass in golden warmth.", icon: "fa-forward", type: "artistic", category: "Beauty" },
-  { id: "effect_84", name: "Shore Dash", desc: "Dashing along the sandy shore in a vibrant red outfit in a sea breeze.", icon: "fa-umbrella-beach", type: "artistic", category: "Beauty" },
-  { id: "effect_85", name: "Tide Rider", desc: "Riding a toy car along the water's edge at dusk with golden tide.", icon: "fa-car", type: "artistic", category: "Beauty" },
-  { id: "effect_86", name: "Cobblestone", desc: "Joyfully running down a historic cobblestone street with friends.", icon: "fa-road", type: "artistic", category: "Beauty" },
-  { id: "effect_87", name: "Frolic Bloom", desc: "Frolicking through yellow blooms in a charming outfit.", icon: "fa-flower", type: "artistic", category: "Beauty" },
-  { id: "effect_88", name: "Blue Sky Leap", desc: "Leaping high above a sea of blooming flowers under a brilliant blue sky.", icon: "fa-cloud-sun", type: "artistic", category: "Beauty" },
-  { id: "effect_89", name: "Youth Essence", desc: "Basking in golden light amidst a kaleidoscope of swaying wildflowers.", icon: "fa-star", type: "artistic", category: "Beauty" },
-  { id: "effect_90", name: "Wild Abandon", desc: "Leaping among wildflowers under a radiant sun and bright blue sky.", icon: "fa-sun", type: "artistic", category: "Beauty" }
-];
-
-const MODELS_TO_TRY = [
-  'gemini-2.0-flash',
-  'gemini-2.0-flash-exp',
-  'gemini-2.5-flash',
-  'gemini-2.5-flash-lite',
-  'gemini-1.5-flash-latest',
-  'gemini-1.5-flash',
-  'imagen-3.0-generate-001',
-  'gemini-2.0-pro-exp-02-05',
-  'gemini-1.5-pro-latest',
-  'gemini-pro-vision',
+  { 
+    id: "custom_prompt", 
+    name: "Custom Prompt", 
+    desc: "Type your own prompt to edit the image.", 
+    icon: "fa-keyboard", 
+    type: "utility" 
+  },
+  { 
+    id: "restoration", 
+    name: "AI Restoration", 
+    desc: "Fix scratches, denoise, sharpen, and color correct.", 
+    icon: "fa-wand-magic-sparkles",
+    type: "utility"
+  },
+  { 
+    id: "effect_1", 
+    name: "Venetian Red", 
+    desc: "Young girl in a Venetian red dress with delicate white lace kneeling beneath an ancient oak tree, golden hour sunlight, spaniel puppy.", 
+    icon: "fa-dog",
+    type: "artistic"
+  },
+  { 
+    id: "effect_2", 
+    name: "Meadow Run", 
+    desc: "Radiantly smiling while playfully running through a multicolored meadow filled with wildflowers at golden hour.", 
+    icon: "fa-sun",
+    type: "artistic"
+  },
+  { 
+    id: "effect_3", 
+    name: "Wildflower Bliss", 
+    desc: "Standing amidst a kaleidoscope of wildflowers, arms spread wide, basking in golden late afternoon light.", 
+    icon: "fa-leaf",
+    type: "artistic"
+  },
+  { 
+    id: "effect_4", 
+    name: "Dutch Portrait", 
+    desc: "Traditional brown folk attire holding a single white flower, Prussian blue background, Rembrandt lighting.", 
+    icon: "fa-palette",
+    type: "artistic"
+  },
+  { 
+    id: "effect_5", 
+    name: "Chalkboard Dance", 
+    desc: "Ballet dancer in a vivid red leotard against a dark chalkboard backdrop, showcasing poise and dedication.", 
+    icon: "fa-chalkboard",
+    type: "artistic"
+  },
+  { 
+    id: "effect_6", 
+    name: "Weightless Leap", 
+    desc: "Young ballerina performing a stunning leap, concentrated expression, light playing off the tutu.", 
+    icon: "fa-person-running",
+    type: "artistic"
+  },
+  { 
+    id: "effect_7", 
+    name: "Flamenco Swirl", 
+    desc: "Swirl of motion, hair flowing, flamenco-inspired red and black dress, pure joy.", 
+    icon: "fa-fan",
+    type: "artistic"
+  },
+  { 
+    id: "effect_8", 
+    name: "Rainbow Tutu", 
+    desc: "Twirling in a rainbow-hued tutu dress, beaming smile, warm ambient lighting.", 
+    icon: "fa-child-reaching",
+    type: "artistic"
+  },
+  { 
+    id: "effect_9", 
+    name: "Dandelion Dance", 
+    desc: "Twirling in a meadow with a vibrant rainbow tutu and soft glimmer of floating dandelions at sunset.", 
+    icon: "fa-wind",
+    type: "artistic"
+  },
+  { 
+    id: "effect_10", 
+    name: "Spring Jubilation", 
+    desc: "Arms up in jubilation amidst a field of blooming flowers, bright floral dress, springtime splendor.", 
+    icon: "fa-seedling",
+    type: "artistic"
+  },
+  { 
+    id: "effect_11", 
+    name: "Water Park Fun", 
+    desc: "Arms raised high in a bright red dress at a water park, splashes of water enveloping in carefree bliss.", 
+    icon: "fa-water",
+    type: "artistic"
+  },
+  { 
+    id: "effect_12", 
+    name: "Pool Splashes", 
+    desc: "Raising arms amidst sparkling waters of a pool, vibrant energy, pure childhood bliss.", 
+    icon: "fa-droplet",
+    type: "artistic"
+  },
+  { 
+    id: "effect_13", 
+    name: "Bokeh Water", 
+    desc: "Playing in water, droplets as sparkling highlights against a soft bokeh background, carefree magic.", 
+    icon: "fa-circle-dot",
+    type: "artistic"
+  },
+  { 
+    id: "effect_14", 
+    name: "Playground Slide", 
+    desc: "Wearing an orange jacket playing on a vividly painted slide, radiant happiness.", 
+    icon: "fa-play",
+    type: "artistic"
+  },
+  { 
+    id: "effect_15", 
+    name: "Kite Beach", 
+    desc: "Flying a vibrant kite on soft sand under a vast clear sky, gentle sea breeze.", 
+    icon: "fa-umbrella-beach",
+    type: "artistic"
+  },
+  { 
+    id: "effect_16", 
+    name: "Kite Festival", 
+    desc: "Dashing through a vibrant kite festival, sky as a mosaic of colors, carefree sprint.", 
+    icon: "fa-wind",
+    type: "artistic"
+  },
+  { 
+    id: "effect_17", 
+    name: "Fairground Wonder", 
+    desc: "Surrounded by a kaleidoscope of brightly painted signs at an amusement park, sparkling eyes.", 
+    icon: "fa-map",
+    type: "artistic"
+  },
+  { 
+    id: "effect_18", 
+    name: "Carousel Ride", 
+    desc: "Perched atop an ornately decorated carousel horse, spinning colors, whimsical backdrop.", 
+    icon: "fa-horse-head",
+    type: "artistic"
+  },
+  { 
+    id: "effect_19", 
+    name: "Orange Slide", 
+    desc: "Sliding down a vibrant orange slide, beaming smile, wide eyes, pure excitement.", 
+    icon: "fa-angles-down",
+    type: "artistic"
+  },
+  { 
+    id: "effect_20", 
+    name: "Meadow Dance", 
+    desc: "Two young girls dancing together in a tranquil meadow bathed in golden sunlight.", 
+    icon: "fa-music",
+    type: "artistic"
+  },
+  { 
+    id: "effect_21", 
+    name: "Forest Path", 
+    desc: "Running through a sun-dappled path surrounded by lush greenery, vibrant floral dresses.", 
+    icon: "fa-tree",
+    type: "artistic"
+  },
+  { 
+    id: "effect_22", 
+    name: "Butterfly Lamp", 
+    desc: "Whimsical tutu, gazing at a lamp post attracting a magnificent butterfly under a starlit sky.", 
+    icon: "fa-bug",
+    type: "artistic"
+  },
+  { 
+    id: "effect_23", 
+    name: "Magic Umbrella", 
+    desc: "Tranquil evening walk under a golden lamppost with a vibrant umbrella and whimsical butterflies.", 
+    icon: "fa-umbrella",
+    type: "artistic"
+  },
+  { 
+    id: "effect_24", 
+    name: "Fairytale Creature", 
+    desc: "Whimsical creature with butterfly wings resting against an old-fashioned lamppost, warm glow.", 
+    icon: "fa-dragon",
+    type: "artistic"
+  },
+  { 
+    id: "effect_25", 
+    name: "Firefly Twilight", 
+    desc: "Holding a jar of fireflies amidst an ethereal twilight glow, fairy-tale luminescence.", 
+    icon: "fa-lightbulb",
+    type: "artistic"
+  },
+  { 
+    id: "effect_26", 
+    name: "Magical Present", 
+    desc: "Opening a magical present with golden sparkles spilling out, Christmas tree bokeh in background.", 
+    icon: "fa-gift",
+    type: "artistic"
+  },
+  { 
+    id: "effect_27", 
+    name: "Toy Village", 
+    desc: "Exploring a tiny toy village in a lush garden at sunset, world of imagination.", 
+    icon: "fa-house-chimney",
+    type: "artistic"
+  },
+  { 
+    id: "effect_28", 
+    name: "Ribbon Dance", 
+    desc: "Dancing with colorful ribbons through a sunlit park at sunset, spirited freedom.", 
+    icon: "fa-ribbon",
+    type: "artistic"
+  },
+  { 
+    id: "effect_29", 
+    name: "Rainbow Ribbon", 
+    desc: "Twirling a rainbow-colored ribbon in a grassy field at golden hour.", 
+    icon: "fa-wand-sparkles",
+    type: "artistic"
+  },
+  { 
+    id: "effect_30", 
+    name: "Sandcastle Focus", 
+    desc: "Deeply absorbed in constructing an elaborate sandcastle, intense focus, creative passion.", 
+    icon: "fa-castle",
+    type: "artistic"
+  },
+  { 
+    id: "effect_31", 
+    name: "Beach Sandcastle", 
+    desc: "Two children building a magnificent sandcastle on a pristine beach under clear blue skies.", 
+    icon: "fa-trowel-bricks",
+    type: "artistic"
+  },
+  { 
+    id: "effect_32", 
+    name: "Bucket Hat Beach", 
+    desc: "Building sandcastles on a vibrant beach, wearing a colorful bucket hat, radiant smile.", 
+    icon: "fa-hat-cowboy",
+    type: "artistic"
+  },
+  { 
+    id: "effect_33", 
+    name: "Candlelight Pool", 
+    desc: "Tranquil pool with floating candles, lily pads, and starfish at twilight, magical glow.", 
+    icon: "fa-fire-flame-curved",
+    type: "artistic"
+  },
+  { 
+    id: "effect_34", 
+    name: "Lantern Festival", 
+    desc: "Leading the way through a field during a lantern festival, clutching a glowing lantern.", 
+    icon: "fa-paper-plane",
+    type: "artistic"
+  },
+  { 
+    id: "effect_35", 
+    name: "Field Race", 
+    desc: "Running through a field of tall grass at golden hour, holding a bottle, carefree spirit.", 
+    icon: "fa-person-running",
+    type: "artistic"
+  },
+  { 
+    id: "effect_36", 
+    name: "Glowing Lantern", 
+    desc: "Running through a tall grassy field with a glowing orange lantern, magical atmosphere.", 
+    icon: "fa-bolt",
+    type: "artistic"
+  },
+  { 
+    id: "effect_37", 
+    name: "Cultural Dance", 
+    desc: "Dancing in colorful cultural attire with intricate patterns and vibrant feathers, festive energy.", 
+    icon: "fa-masks-theater",
+    type: "artistic"
+  },
+  { 
+    id: "effect_38", 
+    name: "Birthday Wish", 
+    desc: "Leaning forward towards a birthday cake with numerous glowing candles, anticipation.", 
+    icon: "fa-cake-candles",
+    type: "artistic"
+  },
+  { 
+    id: "effect_39", 
+    name: "Party Celebration", 
+    desc: "Blowing out candles on a sprinkle-covered cake, balloons and party decorations.", 
+    icon: "fa-gift",
+    type: "artistic"
+  },
+  { 
+    id: "effect_40", 
+    name: "Cake Moment", 
+    desc: "Making a wish before blowing out candles on a sprinkle-covered cake, surrounded by friends.", 
+    icon: "fa-face-smile-beam",
+    type: "artistic"
+  },
+  { 
+    id: "effect_41", 
+    name: "Lantern Night", 
+    desc: "Gently grasping a glowing orange lantern in a tall grassy field at sunset.", 
+    icon: "fa-star",
+    type: "artistic"
+  },
+  { 
+    id: "effect_42", 
+    name: "Treehouse Friend", 
+    desc: "Sharing a moment with an adorable fluffy white dog on a blanket, enchanting treehouse background.", 
+    icon: "fa-dog",
+    type: "artistic"
+  },
+  { 
+    id: "effect_43", 
+    name: "Garden Tea Party", 
+    desc: "Tea party with a fluffy dog on a lush green lawn, surrounded by pink blossoms.", 
+    icon: "fa-mug-hot",
+    type: "artistic"
+  },
+  { 
+    id: "effect_44", 
+    name: "Tutu Treehouse", 
+    desc: "Soft pink tutu dress, sharing a serene moment with a fluffy companion near a wooden treehouse.", 
+    icon: "fa-house",
+    type: "artistic"
+  },
+  { 
+    id: "effect_45", 
+    name: "Heather Meadow", 
+    desc: "Sitting in a field of heather with a loyal canine companion, warm knit hat and scarf.", 
+    icon: "fa-dog",
+    type: "artistic"
+  },
+  { 
+    id: "effect_46", 
+    name: "Golden Retriever", 
+    desc: "Leaning closely behind a golden retriever in a field at golden hour, pure connection.", 
+    icon: "fa-paw",
+    type: "artistic"
+  },
+  { 
+    id: "effect_47", 
+    name: "Jar of Stars", 
+    desc: "Holding a jar brimming with golden lights like captured stars, aura of mystery.", 
+    icon: "fa-wand-magic",
+    type: "artistic"
+  },
+  { 
+    id: "effect_48", 
+    name: "Midsummer Dream", 
+    desc: "Glass jar with warm golden light, midsummer night's dream atmosphere, magical glow.", 
+    icon: "fa-moon",
+    type: "artistic"
+  },
+  { 
+    id: "effect_49", 
+    name: "Meadow Twirl", 
+    desc: "Twirling outdoors in a colorful flowing dress, wildflowers, dreamy overcast sky.", 
+    icon: "fa-clover",
+    type: "artistic"
+  },
+  { 
+    id: "effect_50", 
+    name: "Traditional Performance", 
+    desc: "Traditional dance with a colorful flowing skirt, guitar player in background.", 
+    icon: "fa-guitar",
+    type: "artistic"
+  },
+  { 
+    id: "effect_51", 
+    name: "Festival Twirl", 
+    desc: "Mid-twirl in a traditional red costume with floral details, festival surroundings.", 
+    icon: "fa-burst",
+    type: "artistic"
+  },
+  { 
+    id: "effect_52", 
+    name: "Heritage Dance", 
+    desc: "Participating in a dance celebration in colorful traditional attire, evening lights.", 
+    icon: "fa-people-group",
+    type: "artistic"
+  },
+  { 
+    id: "effect_53", 
+    name: "Vibrant Dress", 
+    desc: "Joyful mid-twirl, vibrant multicolored dress flaring out, carefree bliss.", 
+    icon: "fa-shirt",
+    type: "artistic"
+  },
+  { 
+    id: "effect_54", 
+    name: "Rainbow Spin", 
+    desc: "Mid-twirl in a colorful tutu fanning out like a rainbow, sunlit dance studio.", 
+    icon: "fa-rainbow",
+    type: "artistic"
+  },
+  { 
+    id: "effect_55", 
+    name: "Studio Grace", 
+    desc: "Aspiring ballerina in a white tutu striking an elegant pose in a sunlit studio.", 
+    icon: "fa-person-dress",
+    type: "artistic"
+  },
+  { 
+    id: "effect_56", 
+    name: "Ballet Leap", 
+    desc: "Mid-air during a ballet leap, flowing peach tutu, focus and grace.", 
+    icon: "fa-wind",
+    type: "artistic"
+  },
+  { 
+    id: "effect_57", 
+    name: "Fairy Light Studio", 
+    desc: "Poised by the ballet barre in a blue and pink outfit, studio filled with fairy lights.", 
+    icon: "fa-lightbulb",
+    type: "artistic"
+  },
+  { 
+    id: "effect_58", 
+    name: "Elegant Practice", 
+    desc: "Pink tutu, practicing in a studio with soft glowing chandeliers and mirror-lined walls.", 
+    icon: "fa-gem",
+    type: "artistic"
+  },
+  { 
+    id: "effect_59", 
+    name: "Balloon Confetti", 
+    desc: "Strolling through a festive scene with myriad balloons and confetti, patterned dress.", 
+    icon: "fa-face-grin-stars",
+    type: "artistic"
+  },
+  { 
+    id: "effect_60", 
+    name: "Ice Cream Summer", 
+    desc: "Sunflower in hair, holding an ice cream cone, radiant smile, summer essence.", 
+    icon: "fa-ice-cream",
+    type: "artistic"
+  },
+  { 
+    id: "effect_61", 
+    name: "Stained Glass", 
+    desc: "White lace dress, flower crown, holding an ornate book in a place of worship with stained glass.", 
+    icon: "fa-book-open",
+    type: "artistic"
+  },
+  { 
+    id: "effect_62", 
+    name: "Singing Festival", 
+    desc: "Singing with gusto in a colorful traditional dress at a communal cultural festival.", 
+    icon: "fa-microphone",
+    type: "artistic"
+  },
+  { 
+    id: "effect_63", 
+    name: "Strawberry Harvest", 
+    desc: "Holding a wicker basket of large luscious strawberries, white shirt, patterned skirt.", 
+    icon: "fa-basket-shopping",
+    type: "artistic"
+  },
+  { 
+    id: "effect_64", 
+    name: "Rose Gown", 
+    desc: "Flowing dusty rose gown with billowing sleeves, soft golden window light, ethereal.", 
+    icon: "fa-wind",
+    type: "artistic"
+  },
+  { 
+    id: "effect_65", 
+    name: "Candy Floss", 
+    desc: "Holding a massive fluffy stick of candy floss at a fairground with glowing lights.", 
+    icon: "fa-candy-cane",
+    type: "artistic"
+  },
+  { 
+    id: "effect_66", 
+    name: "Carousel Pole", 
+    desc: "Clinging to a bright carousel pole at a fairground, golden hour light, wonder.", 
+    icon: "fa-horse",
+    type: "artistic"
+  },
+  { 
+    id: "effect_67", 
+    name: "Watermelon Slice", 
+    desc: "Savoring a fresh slice of watermelon, sunlight filtering through lush greenery.", 
+    icon: "fa-lemon",
+    type: "artistic"
+  },
+  { 
+    id: "effect_68", 
+    name: "Flower Headdress", 
+    desc: "Colorful traditional attire, flower headdress, living embodiment of cultural festivities.", 
+    icon: "fa-clover",
+    type: "artistic"
+  },
+  { 
+    id: "effect_69", 
+    name: "Birthday Princess", 
+    desc: "Glittering crown, fifth birthday celebration in a garden, beautifully wrapped presents.", 
+    icon: "fa-crown",
+    type: "artistic"
+  },
+  { 
+    id: "effect_70", 
+    name: "Rope Swing", 
+    desc: "Swinging beneath a canopy of green leaves, sun illuminating flowing hair, carefree.", 
+    icon: "fa-link",
+    type: "artistic"
+  },
+  { 
+    id: "effect_71", 
+    name: "Confetti Balloons", 
+    desc: "Curly blonde hair, lifting arms in delight with a cluster of confetti balloons.", 
+    icon: "fa-face-grin-squint",
+    type: "artistic"
+  },
+  { 
+    id: "effect_72", 
+    name: "Golden Twirl", 
+    desc: "Golden hour sunlight, mid-twirl, genuine laughter, soft-focus natural background.", 
+    icon: "fa-sun",
+    type: "artistic"
+  },
+  { 
+    id: "effect_73", 
+    name: "Coral Abandon", 
+    desc: "Twirling with abandon in a vibrant coral dress against a sky blue background.", 
+    icon: "fa-cloud",
+    type: "artistic"
+  },
+  { 
+    id: "effect_74", 
+    name: "Jubilant Chase", 
+    desc: "Charging forward in a field at golden hour, friends in a jubilant chase.", 
+    icon: "fa-bolt-lightning",
+    type: "artistic"
+  },
+  { 
+    id: "effect_75", 
+    name: "Open Arms", 
+    desc: "Standing in a blooming field with arms open wide, floral dress, sunset warmth.", 
+    icon: "fa-heart",
+    type: "artistic"
+  },
+  { 
+    id: "effect_76", 
+    name: "Horse Connection", 
+    desc: "Majestic horse, gentle touch, countryside background, bond of friendship and trust.", 
+    icon: "fa-horse",
+    type: "artistic"
+  },
+  { 
+    id: "effect_77", 
+    name: "Sunset Horse", 
+    desc: "Delicate white dress, serene connection with a majestic horse at sunset.", 
+    icon: "fa-mountain-sun",
+    type: "artistic"
+  },
+  { 
+    id: "effect_78", 
+    name: "Swing Delight", 
+    desc: "Exuberant delight on a swing, hair flying wildly, setting sun warmth.", 
+    icon: "fa-face-grin-tears",
+    type: "artistic"
+  },
+  { 
+    id: "effect_79", 
+    name: "Sunflower Delight", 
+    desc: "Lush sunflower field, curly hair, ethereal golden light at sunset.", 
+    icon: "fa-sun",
+    type: "artistic"
+  },
+  { 
+    id: "effect_80", 
+    name: "Meadow Bubble", 
+    desc: "Mosaic of wildflowers, floating bubble, childhood innocence, serene light.", 
+    icon: "fa-soap",
+    type: "artistic"
+  },
+  { 
+    id: "effect_81", 
+    name: "Wildflower Walk", 
+    desc: "Walking through an untamed meadow of wildflowers at sunset, tranquility.", 
+    icon: "fa-person-walking",
+    type: "artistic"
+  },
+  { 
+    id: "effect_82", 
+    name: "Flower Happiness", 
+    desc: "Infectious laugh amidst a field of flowers, arms outstretched, golden hour.", 
+    icon: "fa-face-laugh-beam",
+    type: "artistic"
+  },
+  { 
+    id: "effect_83", 
+    name: "Field Sprint", 
+    desc: "Running towards the camera through a field of tall grass, joyful smile, golden glow.", 
+    icon: "fa-person-running",
+    type: "artistic"
+  },
+  { 
+    id: "effect_84", 
+    name: "Shore Dash", 
+    desc: "Vibrant red dress, dashing along the shore at sunset, sea breeze.", 
+    icon: "fa-water",
+    type: "artistic"
+  },
+  { 
+    id: "effect_85", 
+    name: "Toy Car Dusk", 
+    desc: "Riding a toy car along the water's edge at dusk, golden hue, whimsy.", 
+    icon: "fa-car",
+    type: "artistic"
+  },
+  { 
+    id: "effect_86", 
+    name: "Cobblestone Fun", 
+    desc: "Four children running down a historic cobblestone street, laughter and freedom.", 
+    icon: "fa-people-group",
+    type: "artistic"
+  },
+  { 
+    id: "effect_87", 
+    name: "Yellow Blooms", 
+    desc: "Frolicking through a vibrant field of yellow blooms, floral dress, pure bliss.", 
+    icon: "fa-sun",
+    type: "artistic"
+  },
+  { 
+    id: "effect_88", 
+    name: "High Leap", 
+    desc: "Leaping high above a sea of blooming flowers, brilliant blue sky, spirited.", 
+    icon: "fa-arrow-up",
+    type: "artistic"
+  },
+  { 
+    id: "effect_89", 
+    name: "Wildflower Dream", 
+    desc: "Standing amidst a kaleidoscope of wildflowers, arms spread wide, dreamy atmosphere.", 
+    icon: "fa-cloud-sun",
+    type: "artistic"
+  },
+  { 
+    id: "effect_90", 
+    name: "Wild Abandon", 
+    desc: "Leaping with wild abandon among a field of colorful wildflowers, yellow dress.", 
+    icon: "fa-bolt",
+    type: "artistic"
+  }
 ];
 
 // --- AI Service ---
 
-// --- Canvas Image Processing Engine ---
+const generateAiImage = async (originalBase64: string, effectId: string, customPromptText?: string): Promise<string> => {
+  const apiKey = localStorage.getItem('gemini_api_key') || process.env.API_KEY || process.env.GEMINI_API_KEY || "";
+  
+  if (!apiKey) {
+    console.warn("No Gemini API key found in localStorage or environment variables.");
+  }
+  
+  const ai = new GoogleGenAI({ apiKey });
+  
+  const effect = EFFECTS_LIBRARY.find(e => e.id === effectId);
+  if (!effect) throw new Error("Effect not found");
 
-const applyCanvasEffect = async (base64Image: string, effectId: string): Promise<string> => {
-  return new Promise((resolve) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = img.width;
-      canvas.height = img.height;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return resolve(base64Image);
-
-      // Draw original image
-      ctx.drawImage(img, 0, 0);
-      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const data = imageData.data;
-
-      // Apply distinct artistic style transformations based on effectId
-      if (effectId === "restoration") {
-        // High fidelity Denoise, Color Restoration & Sharpness
-        for (let i = 0; i < data.length; i += 4) {
-          const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-          data[i] = Math.min(255, Math.max(0, (data[i] - avg) * 1.25 + avg + 12));
-          data[i + 1] = Math.min(255, Math.max(0, (data[i + 1] - avg) * 1.25 + avg + 10));
-          data[i + 2] = Math.min(255, Math.max(0, (data[i + 2] - avg) * 1.25 + avg + 8));
-        }
-      } else if (effectId.includes("1") || effectId.includes("5") || effectId.includes("7") || effectId.includes("11")) {
-        // Venetian Red / Crimson Cinematic Tint
-        for (let i = 0; i < data.length; i += 4) {
-          data[i] = Math.min(255, data[i] * 1.35 + 30);       // Rich Red
-          data[i + 1] = data[i + 1] * 0.82;                  // Green reduce
-          data[i + 2] = data[i + 2] * 0.85;                  // Blue reduce
-        }
-      } else if (effectId.includes("2") || effectId.includes("3") || effectId.includes("10") || effectId.includes("79")) {
-        // Meadow Run / Golden Hour Warmth
-        for (let i = 0; i < data.length; i += 4) {
-          data[i] = Math.min(255, data[i] * 1.22 + 25);       // Warm Amber Red
-          data[i + 1] = Math.min(255, data[i + 1] * 1.15 + 18); // Golden Green
-          data[i + 2] = data[i + 2] * 0.75;                   // Reduce Blue
-        }
-      } else if (effectId.includes("4") || effectId.includes("22") || effectId.includes("58")) {
-        // Rembrandt Folk / Cold Prussian Blue & Dramatic Contrast
-        for (let i = 0; i < data.length; i += 4) {
-          data[i] = data[i] * 0.78;                           // Reduce Red
-          data[i + 1] = Math.min(255, data[i + 1] * 1.05 + 10);
-          data[i + 2] = Math.min(255, data[i + 2] * 1.35 + 35); // Deep Sapphire Blue
-        }
-      } else {
-        // Dynamic High-Contrast Artistic Enhancer
-        for (let i = 0; i < data.length; i += 4) {
-          const avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-          data[i] = Math.min(255, Math.max(0, (data[i] - avg) * 1.3 + avg + 15));
-          data[i + 1] = Math.min(255, Math.max(0, (data[i + 1] - avg) * 1.3 + avg + 10));
-          data[i + 2] = Math.min(255, Math.max(0, (data[i + 2] - avg) * 1.3 + avg + 18));
-        }
-      }
-
-      ctx.putImageData(imageData, 0, 0);
-
-      // Add a subtle artistic radial vignette
-      const gradient = ctx.createRadialGradient(
-        canvas.width / 2, canvas.height / 2, Math.min(canvas.width, canvas.height) * 0.35,
-        canvas.width / 2, canvas.height / 2, Math.max(canvas.width, canvas.height) * 0.75
-      );
-      gradient.addColorStop(0, "rgba(0,0,0,0)");
-      gradient.addColorStop(1, "rgba(0,0,0,0.45)");
-      ctx.fillStyle = gradient;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      resolve(canvas.toDataURL("image/jpeg", 0.92));
-    };
-    img.onerror = () => resolve(base64Image);
-    img.src = base64Image;
-  });
-};
-
-const generateAiImage = async (originalBase64: string, effectId: string, customDesc: string, apiKey: string): Promise<string> => {
-  try {
-    const backendUrl = "http://localhost:3001/generate";
-    const response = await fetch(backendUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ originalBase64, effectId, customDesc, apiKey })
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      if (data.resultImage) return data.resultImage;
-    }
-  } catch (err) {
-    console.log("[afwPixelAi] Backend offline, falling back to client-side Canvas Image Filter Processor.");
+  let finalPrompt = "";
+  
+  if (effect.id === 'restoration') {
+    finalPrompt = PROMPT_TEMPLATES.restoration;
+  } else if (effect.id === 'custom_prompt') {
+    finalPrompt = `${PROMPT_TEMPLATES.identity} ${PROMPT_TEMPLATES.lens} Edit this image as follows: ${customPromptText || "Enhance the image"}`;
+  } else {
+    finalPrompt = `${PROMPT_TEMPLATES.identity} ${PROMPT_TEMPLATES.lens} Edit this image as follows: ${effect.desc}`;
   }
 
-  // Fallback to client-side HTML5 Canvas Image Filter Processor
-  return await applyCanvasEffect(originalBase64, effectId);
+  const base64Data = originalBase64.split(',')[1];
+
+  const modelsToTry = [
+    'gemini-2.5-flash-image',
+    'gemini-2.5-flash',
+    'gemini-2.0-flash',
+    'imagen-4.0-generate-001',
+    'imagen-3.0-generate-001'
+  ];
+
+  let lastError = null;
+
+  for (const modelName of modelsToTry) {
+    try {
+      console.log(`Attempting generation with ${modelName}...`);
+      const response = await ai.models.generateContent({
+        model: modelName,
+        contents: {
+          parts: [
+            {
+              inlineData: {
+                mimeType: 'image/jpeg', 
+                data: base64Data
+              }
+            },
+            { text: finalPrompt }
+          ]
+        }
+      });
+
+      const parts = response.candidates?.[0]?.content?.parts;
+      if (!parts) throw new Error(`No content generated by ${modelName}`);
+
+      for (const part of parts) {
+          if (part.inlineData) {
+              return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+          }
+      }
+      
+      const textPart = parts.find(p => p.text);
+      if (textPart) {
+          console.warn(`Model ${modelName} returned text:`, textPart.text);
+      }
+    } catch (error: any) {
+      console.warn(`${modelName} failed:`, error);
+      lastError = error;
+    }
+  }
+
+  throw lastError || new Error("All AI models failed to generate an image. Please verify your Gemini API key in settings.");
 };
 
 // --- Components ---
 
-const Logo = ({ customSrc }: any) => (
-  <div className="w-10 h-10 rounded-lg bg-white flex items-center justify-center overflow-hidden border-2 border-white shadow-[0_0_10px_rgba(255,255,255,0.3)] p-0">
-    <img
-      src={customSrc || logo}
-      alt="afw"
-      className="w-full h-full object-contain"
-      onError={(e: any) => e.target.src = "https://placehold.co/40x40?text=afw"}
-    />
-  </div>
-);
+const Logo = ({ customSrc }: { customSrc?: string | null }) => {
+    const [hasError, setHasError] = useState(false);
+    // Strictly use the assets path or custom upload
+    const src = customSrc || "assets/logo.png";
 
-const Header = ({ customLogo, onOpenSettings, isFullAccess, trialTimeRemaining }: any) => (
+    useEffect(() => {
+        setHasError(false);
+    }, [src]);
+
+    return (
+        <div className="w-12 h-12 rounded-xl bg-blue-950 flex items-center justify-center overflow-hidden shadow-lg border border-blue-900/50">
+             {!hasError ? (
+                 <img 
+                    src={src} 
+                    alt="afw Logo" 
+                    className="w-full h-full object-contain"
+                    onError={() => setHasError(true)}
+                 />
+             ) : (
+                <span className="text-2xl font-serif italic font-bold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-orange-500 via-red-500 to-yellow-500 pb-1">afw</span>
+             )}
+        </div>
+    );
+};
+
+const Header = ({ customLogo }: { customLogo?: string | null }) => (
   <header className="bg-slate-900/90 backdrop-blur-md border-b border-slate-800 sticky top-0 z-50">
-    <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between">
+    <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
       <div className="flex items-center gap-2">
         <Logo customSrc={customLogo} />
-        <h1 className="text-xl font-bold tracking-tight"><span className="text-slate-100">Pixel</span><span className="text-orange-500">Ai</span></h1>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight leading-none">
+             {/* Tech white for Pixel, Fire gradient for Ai */}
+            <span className="text-slate-100">Pixel</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 via-red-500 to-yellow-500">Ai</span>
+          </h1>
+          <span className="text-[10px] font-semibold text-slate-500 tracking-wider uppercase">
+            Img Studio
+          </span>
+        </div>
       </div>
-      <div className="flex items-center gap-3">
-        {!isFullAccess ? (
-          <div className="px-3 py-1 bg-white/10 border border-white/20 rounded-xl flex items-center gap-2">
-            <i className="fa-solid fa-clock text-orange-500"></i>
-            <span className="text-white font-mono text-xs font-bold">{Math.floor(trialTimeRemaining/60)}:{(trialTimeRemaining%60).toString().padStart(2,'0')}</span>
-          </div>
-        ) : (
-          <div className="px-3 py-1 bg-orange-500/20 border border-orange-500/50 rounded-xl flex items-center gap-2">
-            <i className="fa-solid fa-crown text-orange-500"></i>
-            <span className="text-orange-500 text-xs font-black uppercase">PRO</span>
-          </div>
-        )}
-        <button onClick={onOpenSettings} className="p-2.5 bg-white/5 border border-white/20 rounded-xl hover:bg-white/10 transition-all group">
-          <i className="fa-solid fa-gear text-lg text-slate-300 group-hover:text-white group-hover:rotate-90 transition-all"></i>
-        </button>
+      <div className="hidden sm:flex items-center gap-4 text-xs font-medium text-slate-400">
+        <span><i className="fa-solid fa-shield-halved mr-1 text-slate-600"></i>Identity Lock™</span>
+        <span><i className="fa-solid fa-camera mr-1 text-slate-600"></i>Cinematic Lens</span>
       </div>
     </div>
   </header>
 );
 
-const DownloadModal = ({ isOpen, onClose, onDownload }: any) => {
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-slate-955/95 backdrop-blur-xl animate-fade-in">
-      <div className="bg-slate-900 border-2 border-white rounded-3xl w-full max-w-sm shadow-2xl overflow-hidden animate-scale-in text-center p-8 space-y-6">
-        <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto text-black text-2xl shadow-xl"><i className="fa-solid fa-cloud-arrow-down"></i></div>
-        <div className="space-y-2">
-          <h2 className="text-xl font-black text-white uppercase tracking-widest">Storage Access</h2>
-          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest leading-relaxed px-4">Save your generated masterpiece to your device gallery</p>
-        </div>
-        <button onClick={onDownload} className="btn-block w-full py-4 rounded-2xl tracking-widest">Download Now</button>
-        <button onClick={onClose} className="text-slate-500 font-bold text-[10px] uppercase tracking-widest hover:text-white transition-colors">Cancel</button>
-      </div>
+const Footer = () => (
+  <footer className="bg-slate-950 text-slate-500 py-6 text-center text-xs mt-auto border-t border-slate-900">
+    <p className="mb-2">
+      <span className="font-semibold text-slate-400">Powered by {APP_CONFIG.poweredBy}</span>
+    </p>
+    <p className="opacity-60 font-mono">
+      MSME Registered: {APP_CONFIG.msmeRegistration}
+    </p>
+    <div className="mt-4 flex justify-center gap-4 opacity-50">
+      <i className="fa-brands fa-instagram hover:text-white cursor-pointer transition-colors"></i>
+      <i className="fa-brands fa-twitter hover:text-white cursor-pointer transition-colors"></i>
+      <i className="fa-solid fa-globe hover:text-white cursor-pointer transition-colors"></i>
     </div>
-  );
-};
+  </footer>
+);
 
-const InfoModal = ({ isOpen, onClose, title, children }: any) => {
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 z-[160] flex items-center justify-center p-4 bg-slate-955/95 backdrop-blur-xl animate-fade-in">
-      <div className="bg-slate-900 border-2 border-white rounded-3xl w-full max-w-md shadow-[0_0_30px_rgba(255,255,255,0.1)] overflow-hidden animate-scale-in max-h-[80vh] flex flex-col">
-        <div className="p-6 border-b border-white/20 flex justify-between items-center bg-white/5">
-          <h2 className="font-black text-white uppercase tracking-widest">{title}</h2>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 transition-all border border-white/30"><i className="fa-solid fa-xmark"></i></button>
-        </div>
-        <div className="p-8 overflow-y-auto text-white leading-relaxed space-y-4 text-sm scrollbar-thin scrollbar-thumb-white/20">
-          {children}
-        </div>
-        <div className="p-4 border-t border-white/10 bg-black/20 text-center">
-          <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Powered by {APP_CONFIG.poweredBy}</p>
-        </div>
-      </div>
+interface EffectCardProps {
+  effect: any;
+  isSelected: boolean;
+  onClick: () => void;
+}
+
+const EffectCard: React.FC<EffectCardProps> = ({ effect, isSelected, onClick }) => (
+  <button
+    onClick={onClick}
+    className={`
+      flex flex-col items-center justify-center p-2 rounded-xl border transition-all duration-200 w-full aspect-square text-center group relative overflow-hidden
+      ${isSelected 
+        ? 'border-orange-500 bg-orange-900/20 shadow-md ring-1 ring-orange-500/50' 
+        : 'border-slate-700 bg-slate-800 hover:border-slate-600 hover:bg-slate-700'
+      }
+    `}
+    title={effect.desc}
+  >
+    <div className={`
+      w-8 h-8 rounded-lg flex items-center justify-center mb-1 text-md transition-colors
+      ${isSelected ? 'bg-orange-500 text-white' : 'bg-slate-700 text-slate-400 group-hover:bg-slate-600 group-hover:text-slate-200'}
+    `}>
+      <i className={`fa-solid ${effect.icon}`}></i>
     </div>
-  );
-};
+    <h3 className={`font-bold text-[10px] leading-tight line-clamp-2 ${isSelected ? 'text-slate-200' : 'text-slate-400 group-hover:text-slate-300'}`}>
+      {effect.name}
+    </h3>
+  </button>
+);
 
-const SubscriptionModal = ({ isOpen, onClose, freeGenCount }: any) => {
-  const [showSubscription, setShowSubscription] = useState(false);
-
-  if (!isOpen) return null;
-
-  const handlePay = (amount: number) => {
-    const upiUrl = `upi://pay?pa=${APP_CONFIG.upiId}&pn=${APP_CONFIG.appName}&am=${amount}&cu=INR&tn=Subscription for ${APP_CONFIG.appName}`;
-    window.location.href = upiUrl;
-  };
-
-  return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md animate-fade-in">
-      <div className="bg-slate-900 border-2 border-white rounded-[2rem] w-full max-w-md shadow-2xl overflow-hidden animate-scale-in flex flex-col max-h-[90vh]">
-        <div className="p-6 border-b border-white/20 flex justify-between items-center bg-white/5">
-          <h2 className="font-black text-white flex items-center gap-3 uppercase tracking-widest">
-            <i className="fa-solid fa-crown text-orange-500"></i> Subscription
-          </h2>
-          <button onClick={onClose} className="text-white hover:scale-110 transition-transform"><i className="fa-solid fa-xmark text-xl"></i></button>
-        </div>
-
-        <div className="p-6 overflow-y-auto space-y-8 scrollbar-hide">
-          <div className="space-y-4">
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-between">
-              <div>
-                <p className="text-[10px] font-black uppercase text-slate-400 tracking-widest mb-1">Free Usage Credits</p>
-                <p className="text-lg font-black text-white">{Math.max(0, 3 - freeGenCount)} <span className="text-xs text-orange-500">Remains</span></p>
-              </div>
-              <div className="flex gap-1">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className={`w-3 h-3 rounded-full border border-white/20 ${i <= freeGenCount ? 'bg-slate-700' : 'bg-orange-500 animate-pulse shadow-[0_0_8px_rgba(249,115,22,0.6)]'}`}></div>
-                ))}
-              </div>
-            </div>
-
-            {!showSubscription ? (
-              <button
-                onClick={() => setShowSubscription(true)}
-                className="w-full py-4 bg-white text-black font-black rounded-2xl border-b-4 border-slate-300 active:border-b-0 active:translate-y-1 transition-all uppercase tracking-widest text-[10px] flex items-center justify-center gap-2"
-              >
-                <i className="fa-solid fa-crown text-orange-600"></i> Manage Subscription
-              </button>
-            ) : (
-              <div className="space-y-4 animate-fade-in">
-                <div className="grid grid-cols-2 gap-3">
-                  <button onClick={() => handlePay(99)} className="p-4 bg-black border border-white/20 rounded-2xl text-left hover:border-white transition-all">
-                    <p className="text-[8px] font-black text-slate-500 uppercase">Monthly</p>
-                    <p className="text-lg font-black text-white">₹99</p>
-                  </button>
-                  <button onClick={() => handlePay(599)} className="p-4 bg-black border-2 border-orange-500 rounded-2xl text-left relative overflow-hidden">
-                    <div className="absolute top-0 right-0 bg-orange-500 text-black text-[7px] font-black px-2 py-0.5 uppercase tracking-tighter">Save</div>
-                    <p className="text-[8px] font-black text-slate-500 uppercase">Yearly</p>
-                    <p className="text-lg font-black text-white">₹599</p>
-                  </button>
-                </div>
-                <p className="text-[8px] text-slate-500 font-black uppercase tracking-widest text-center">Payment reflects via UPI to {APP_CONFIG.upiId}</p>
-                <button onClick={() => setShowSubscription(false)} className="w-full text-[9px] font-black text-slate-400 uppercase tracking-widest hover:text-white">Back</button>
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const PaymentModal = ({ isOpen, onClose, onUpgrade }: any) => {
-  if (!isOpen) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xl">
-      <div className="relative w-full max-w-sm overflow-hidden bg-black border-2 border-orange-500 rounded-3xl shadow-2xl">
-        <div className="p-8 text-center space-y-6">
-          <div className="w-16 h-16 mx-auto bg-orange-500 rounded-2xl flex items-center justify-center animate-bounce">
-            <i className="fa-solid fa-unlock-keyhole text-black text-2xl"></i>
-          </div>
-          <div>
-            <h2 className="text-2xl font-black text-white uppercase tracking-wider">Unlock Full Access</h2>
-            <p className="text-orange-500 font-bold mt-2">Your 20-minute free trial has expired.</p>
-          </div>
-          <div className="bg-white/5 rounded-xl p-4 space-y-3 text-left">
-            <div className="flex items-center gap-3 text-white"><i className="fa-solid fa-check text-orange-500"></i> <span className="text-sm">Unlimited Art Generations</span></div>
-            <div className="flex items-center gap-3 text-white"><i className="fa-solid fa-check text-orange-500"></i> <span className="text-sm">Access to all 30+ Premium Filters</span></div>
-            <div className="flex items-center gap-3 text-white"><i className="fa-solid fa-check text-orange-500"></i> <span className="text-sm">Custom Prompts & Photo Restoration</span></div>
-            <div className="flex items-center gap-3 text-white"><i className="fa-solid fa-check text-orange-500"></i> <span className="text-sm">No Ads, No Subscriptions</span></div>
-          </div>
-          <button onClick={onUpgrade} className="w-full py-4 bg-orange-500 hover:bg-orange-400 text-black font-black uppercase tracking-widest rounded-xl transition-all">
-            Unlock Now for $4.99
-          </button>
-          <button onClick={onClose} className="text-slate-400 text-xs font-bold uppercase hover:text-white transition-colors">Maybe Later</button>
-        </div>
-      </div>
-    </div>
-  );
-};
+// --- Main App Component ---
 
 const App = () => {
-  const [userApiKey, setUserApiKey] = useState(() => localStorage.getItem("GEMINI_API_KEY") || "");
-  const [isKeyValid, setIsKeyValid] = useState(false);
-  const [isValidating, setIsValidating] = useState(false);
-  const [activeModal, setActiveModal] = useState<string | null>(null);
-  const [customPromptText, setCustomPromptText] = useState("");
-  const [trialTimeRemaining, setTrialTimeRemaining] = useState(0);
-  const [isFullAccess, setIsFullAccess] = useState(() => localStorage.getItem("FULL_ACCESS") === "true");
-
-  useEffect(() => {
-    let startTime = localStorage.getItem("TRIAL_START_TIME");
-    if (!startTime) {
-      startTime = Date.now().toString();
-      localStorage.setItem("TRIAL_START_TIME", startTime);
-    }
-    const updateTimer = () => {
-      const elapsed = Math.floor((Date.now() - parseInt(startTime)) / 1000);
-      const remaining = Math.max(0, 1200 - elapsed);
-      setTrialTimeRemaining(remaining);
-    };
-    updateTimer();
-    const interval = setInterval(updateTimer, 1000);
-    return () => clearInterval(interval);
-  }, []);
   const [originalImage, setOriginalImage] = useState<string | null>(null);
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [selectedEffectId, setSelectedEffectId] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isLoadingDemo, setIsLoadingDemo] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [isPreviewOpen, setIsPreviewOpen] = useState(false);
-  const [isTestingModels, setIsTestingModels] = useState(false);
+  const [isComparing, setIsComparing] = useState(false);
+  
+  const [customPromptText, setCustomPromptText] = useState("");
   const [customLogo, setCustomLogo] = useState<string | null>(null);
-  const [activeCategory, setActiveCategory] = useState("Cinematic");
-
-  const [freeGenCount, setFreeGenCount] = useState(() => parseInt(localStorage.getItem("FREE_GEN_COUNT") || "0"));
-  const [billingAcknowledged, setBillingAcknowledged] = useState(() => localStorage.getItem("BILLING_ACKNOWLEDGED") === "true");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const handleFileUpload = (e: any) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => { setOriginalImage(ev.target?.result as string); setResultImage(null); setError(null); };
-    reader.readAsDataURL(file);
-  };
-  
-  const handleGenerate = async () => {
-    if (!isFullAccess && trialTimeRemaining <= 0) {
-      setActiveModal('payment');
-      return;
+    
+    // Check for ZIP file
+    if (file.name.endsWith('.zip') || file.type === 'application/zip' || file.type === 'application/x-zip-compressed') {
+        setError(null);
+        try {
+            const zip = new JSZip();
+            const contents = await zip.loadAsync(file);
+            
+            let foundLogo = false;
+            let foundImage = false;
+            
+            // 1. Look for logo.png (insensitive)
+            const fileNames = Object.keys(contents.files);
+            const logoFileName = fileNames.find(name => name.toLowerCase().includes('logo.png') && !contents.files[name].dir);
+            
+            if (logoFileName) {
+                const logoBlob = await contents.files[logoFileName].async('blob');
+                const logoUrl = URL.createObjectURL(logoBlob);
+                setCustomLogo(logoUrl);
+
+                // --- DYNAMIC FAVICON UPDATE ---
+                const iconLinks = document.querySelectorAll("link[rel*='icon']");
+                iconLinks.forEach(link => (link as HTMLLinkElement).href = logoUrl);
+                
+                if (iconLinks.length === 0) {
+                    const link = document.createElement('link');
+                    link.rel = 'icon';
+                    link.href = logoUrl;
+                    document.head.appendChild(link);
+                }
+                
+                foundLogo = true;
+            }
+
+            // 2. Look for the first valid image
+            const validExtensions = ['.jpg', '.jpeg', '.png', '.webp'];
+            const imageFileName = fileNames.find(name => {
+                const lower = name.toLowerCase();
+                const isImage = validExtensions.some(ext => lower.endsWith(ext));
+                const isNotLogo = !lower.includes('logo.png');
+                const isNotDir = !contents.files[name].dir;
+                return isImage && isNotLogo && isNotDir;
+            });
+
+            if (imageFileName) {
+                const imgBlob = await contents.files[imageFileName].async('blob');
+                setOriginalImage(URL.createObjectURL(imgBlob));
+                setResultImage(null);
+                foundImage = true;
+            }
+            
+            if (!foundLogo && !foundImage) {
+                setError("ZIP file loaded but no valid images or logo.png found.");
+            } else if (foundLogo && !foundImage) {
+                setError(null);
+            }
+
+        } catch (err: any) {
+            console.error("Zip Error:", err);
+            setError("Failed to process ZIP file.");
+        }
+    } else {
+        // Handle Standard Image
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          setOriginalImage(event.target?.result as string);
+          setResultImage(null);
+          setError(null);
+        };
+        reader.readAsDataURL(file);
     }
+  };
+
+  const handleDemoLoad = async () => {
+    setIsLoadingDemo(true);
+    setError(null);
+    try {
+        const response = await fetch("https://images.unsplash.com/photo-1524504388940-b1c1722653e1?ixlib=rb-4.0.3&auto=format&fit=crop&w=800&q=80");
+        const blob = await response.blob();
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setOriginalImage(reader.result as string);
+            setResultImage(null);
+            setError(null);
+            setIsLoadingDemo(false);
+        }
+        reader.readAsDataURL(blob);
+    } catch (e) {
+        setError("Failed to load demo image.");
+        setIsLoadingDemo(false);
+    }
+  };
+
+  const handleGenerate = async () => {
     if (!originalImage || !selectedEffectId) return;
 
     setIsGenerating(true);
     setError(null);
-
+    
     try {
-      const effectDesc = EFFECTS_LIBRARY.find(e => e.id === selectedEffectId)?.desc || "";
-      const customDesc = selectedEffectId === 'custom_prompt' ? customPromptText : effectDesc;
-      
-      const gen = await generateAiImage(originalImage, selectedEffectId, customDesc, userApiKey);
-      setResultImage(gen);
-      setIsPreviewOpen(true);
-      const newCount = freeGenCount + 1;
-      setFreeGenCount(newCount);
-      localStorage.setItem("FREE_GEN_COUNT", newCount.toString());
+      const generated = await generateAiImage(originalImage, selectedEffectId, customPromptText);
+      setResultImage(generated);
     } catch (err: any) {
-      setError(err.message);
+      console.error(err);
+      if (err.message?.includes('429') || err.message?.includes('quota') || err.message?.includes('RESOURCE_EXHAUSTED') || err.status === 429) {
+          setError("QUOTA_EXCEEDED");
+      } else {
+          // Display generic error to user to avoid system-like error text
+          setError("Failed to generate image. Please try again.");
+      }
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const handleDownload = async (format: string) => {
-    if (!resultImage) return;
-    setActiveModal(null);
-
-    const base64 = resultImage.split(",")[1];
-    const name = `afw_${Date.now()}.${format}`;
-
-    if (typeof window !== 'undefined' && 'Capacitor' in window && (window as any).Capacitor.isNativePlatform()) {
-      try {
-        await Filesystem.writeFile({ path: `Pictures/${name}`, data: base64, directory: Directory.ExternalStorage });
-        alert(`Success! Image saved to Mobile Gallery (Pictures folder) as ${format.toUpperCase()}.`);
-        return;
-      } catch (err: any) {
-        try {
-          await Filesystem.writeFile({ path: `Download/${name}`, data: base64, directory: Directory.ExternalStorage });
-          alert(`Saved to Downloads folder! Check your files app. (Format: ${format.toUpperCase()})`);
-          return;
-        } catch (err2: any) {
-          alert("Could not save to folder automatically due to permissions. Use the Share button below to save to Google Photos or another folder.");
-        }
-      }
-    }
-
-    try {
+  const handleDownload = () => {
+    if (resultImage) {
       const link = document.createElement("a");
-      link.href = resultImage; link.download = name;
+      link.href = resultImage;
+      link.download = `afwPixelAi_${Date.now()}.png`;
+      document.body.appendChild(link);
       link.click();
-    } catch (err) {
-      alert("Download failed.");
+      document.body.removeChild(link);
     }
   };
 
   const handleShare = async () => {
     if (!resultImage) return;
+
+    const confirmed = window.confirm("Are you sure you want to share this image?");
+    if (!confirmed) return;
+
     try {
-      const base64 = resultImage.split(",")[1];
-      const name = `afw_share.png`;
-      const saved = await Filesystem.writeFile({ path: name, data: base64, directory: Directory.Cache });
-      await Share.share({ title: 'afw Art', text: 'Check out this art created with afwPixelAi!', url: saved.uri, dialogTitle: 'Share via Social Media' });
-    } catch { alert("Sharing not supported on this device."); }
+        const base64Response = await fetch(resultImage);
+        const blob = await base64Response.blob();
+        const file = new File([blob], "afw_art.png", { type: "image/png" });
+
+        if (navigator.share) {
+            await navigator.share({
+                title: 'Created with afwPixelAi',
+                text: 'Check out this cinematic image created with afwPixelAi!',
+                files: [file],
+            });
+        } else {
+            // Fallback for desktop browsers that don't support file sharing via navigator.share
+            alert("Native sharing is not supported on this device. You can download the image instead.");
+        }
+    } catch (err) {
+        console.error("Share failed:", err);
+    }
   };
 
-  const handleTestModels = async () => {
-    setIsTestingModels(true);
-    for (const model of MODELS_TO_TRY) {
-      try {
-        const ai = new GoogleGenAI({ apiKey: userApiKey });
-        await ai.models.generateContent({ model, contents: { parts: [{ text: "hi" }] } });
-        alert(`✅ ${model} available!`);
-      } catch { console.warn(`${model} unavailable`); }
-    }
-    setIsTestingModels(false);
-  };
+  const startCompare = () => setIsComparing(true);
+  const stopCompare = () => setIsComparing(false);
+
+  const isWorkspace = !!originalImage;
 
   return (
-    <div className="min-h-screen flex flex-col bg-slate-955 text-white font-sans overflow-x-hidden selection:bg-orange-500/30">
-      <Header customLogo={customLogo} onOpenSettings={() => setActiveModal('settings')} isFullAccess={isFullAccess} trialTimeRemaining={trialTimeRemaining} />
+    <div className="min-h-screen flex flex-col bg-slate-950 font-sans text-slate-200 selection:bg-orange-500 selection:text-white">
+      <Header customLogo={customLogo} />
 
-      <main className="flex-1 p-4 max-w-lg mx-auto w-full space-y-6">
-
-        {/* Compact Upload & Controls Block */}
-        <div className="bg-slate-900 border-2 border-white rounded-3xl p-4 shadow-[0_10px_40px_rgba(0,0,0,0.4)] space-y-4">
-          <div className="flex gap-2">
-            <button onClick={() => fileInputRef.current?.click()} className="btn-block flex-1 h-14 rounded-2xl flex items-center justify-center gap-3 group text-[10px]">
-              <i className="fa-solid fa-cloud-arrow-up text-orange-600 group-hover:scale-110 transition-transform"></i>
-              <span>{originalImage ? "Change Photo" : "Upload Photo"}</span>
-            </button>
-          </div>
-          <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={handleFileUpload} />
-
-          {/* Prominent Export Actions Block */}
-          <div className="flex gap-2 p-1 bg-black/40 rounded-2xl border border-white/10">
-            <button
-              onClick={() => setActiveModal('download')}
-              disabled={!resultImage || isGenerating}
-              className={`flex-1 h-12 rounded-xl flex items-center justify-center gap-2 font-black border-2 transition-all ${resultImage && !isGenerating ? 'bg-black border-white text-white hover:bg-white hover:text-black active:scale-95' : 'bg-transparent border-white/10 text-slate-700 cursor-not-allowed'}`}
-            >
-              <i className="fa-solid fa-download"></i>
-              <span className="text-[9px] uppercase tracking-[0.2em]">Save</span>
-            </button>
-            <button
-              onClick={handleShare}
-              disabled={!resultImage || isGenerating}
-              className={`flex-1 h-12 rounded-xl flex items-center justify-center gap-2 font-black border-2 transition-all ${resultImage && !isGenerating ? 'bg-black border-white text-white hover:bg-white hover:text-black active:scale-95' : 'bg-transparent border-white/10 text-slate-700 cursor-not-allowed'}`}
-            >
-              <i className="fa-solid fa-share-nodes"></i>
-              <span className="text-[9px] uppercase tracking-[0.2em]">Share</span>
-            </button>
-          </div>
-
-          {/* AI Restoration Separate Block */}
-          <div className="p-1 bg-black/60 rounded-2xl border-2 border-white/20 shadow-inner">
-            <button
-              onClick={() => setSelectedEffectId('restoration')}
-              className={`w-full py-4 rounded-xl flex items-center justify-center gap-3 transition-all effect-border ${selectedEffectId === 'restoration' ? 'bg-white shadow-[0_0_20px_rgba(255,255,255,0.3)]' : 'bg-transparent hover:bg-white/10'}`}
-            >
-              <i className={`fa-solid fa-wand-magic-sparkles ${selectedEffectId === 'restoration' ? 'text-black animate-pulse' : 'text-white'}`}></i>
-              <span className={`text-[10px] font-black uppercase tracking-[0.2em] ${selectedEffectId === 'restoration' ? 'text-black' : 'vibrant-white'}`}>AI Restoration Mode</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Workspace / Preview Area */}
-        {originalImage && (
-          <div className="space-y-4 animate-fade-in">
-            <div className="aspect-square bg-slate-905 rounded-3xl border-2 border-white overflow-hidden relative shadow-[0_20px_60px_rgba(0,0,0,0.6)] group">
-              <img src={isPreviewOpen ? originalImage : (resultImage || originalImage)} className="w-full h-full object-cover" />
-              {isGenerating && (
-                <div className="absolute inset-0 bg-black/90 backdrop-blur-xl flex flex-col items-center justify-center z-20">
-                  <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mb-6 shadow-[0_0_20px_rgba(255,255,255,0.4)]"></div>
-                  <span className="text-[10px] font-black animate-pulse uppercase tracking-[0.4em] text-white">Synthesizing Art</span>
-                </div>
-              )}
-              {resultImage && (
-                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10 w-full px-6">
-                  <button
-                    onMouseDown={() => setIsPreviewOpen(true)} onMouseUp={() => setIsPreviewOpen(false)}
-                    onTouchStart={() => setIsPreviewOpen(true)} onTouchEnd={() => setIsPreviewOpen(false)}
-                    className="w-full py-4 bg-white text-black rounded-2xl text-[10px] font-black border-2 border-white select-none shadow-2xl tracking-[0.3em] active:bg-orange-500 active:text-white transition-all uppercase"
-                  >
-                    Hold to Compare
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <button
-              onClick={handleGenerate}
-              disabled={!selectedEffectId || isGenerating}
-              className="btn-block w-full py-6 rounded-2xl text-sm tracking-[0.3em] disabled:opacity-20 flex items-center justify-center disabled:cursor-not-allowed"
-            >
-              {isGenerating ? "Synthesizing..." : resultImage ? "Regenerate Masterpiece" : "Generate Masterpiece"}
-            </button>
-
-          </div>
-        )}
-
-        {/* Effects Grid */}
-        <div className="space-y-4">
-          <div className="flex justify-between items-center px-2">
-            <h3 className="font-black text-slate-500 text-[10px] uppercase tracking-widest">Artistic Styles</h3>
-            <div className="flex gap-2">
-              {["Cinematic", "Adventure", "Beauty"].map(cat => (
-                <button key={cat} onClick={() => setActiveCategory(cat)} className={`text-[10px] font-bold px-2 py-1 rounded-md transition-all ${activeCategory === cat ? 'bg-slate-800 text-orange-500' : 'text-slate-600 hover:text-slate-400'}`}>{cat}</button>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-4 gap-3 px-1">
-            {EFFECTS_LIBRARY.filter(e => e.category === activeCategory).map(eff => (
-              <button key={eff.id} onClick={() => setSelectedEffectId(eff.id)} className={`aspect-square rounded-2xl flex flex-col items-center justify-center gap-2 transition-all effect-border ${selectedEffectId === eff.id ? 'bg-white scale-105 z-10 shadow-[0_0_20px_rgba(255,255,255,0.4)]' : 'bg-black hover:border-white'}`}>
-                <i className={`fa-solid ${eff.icon} text-lg ${selectedEffectId === eff.id ? 'text-black' : 'text-white'}`}></i>
-                <span className={`text-[8px] font-black uppercase tracking-tighter truncate w-full px-1 text-center ${selectedEffectId === eff.id ? 'text-black' : 'vibrant-white'}`}>{eff.name}</span>
-              </button>
-            ))}
-          </div>
-
-        </div>
-
-        {error === "QUOTA_EXCEEDED" && (
-          <div className="p-6 bg-black border-2 border-white rounded-3xl flex flex-col items-center gap-4 text-center animate-fade-in shadow-[0_0_40px_rgba(255,255,255,0.05)]">
-            <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center shadow-lg"><i className="fa-solid fa-gem text-black text-2xl"></i></div>
-            <div className="space-y-1">
-              <p className="text-xs font-black text-white uppercase tracking-[0.25em]">Free Tokens Exhausted</p>
-              <p className="text-[9px] text-slate-400 leading-normal px-6 uppercase font-bold tracking-widest">
-                You have used your 3 free credits. Subscription plans are available in the <span className="text-orange-500">Settings (Gear icon)</span> above.
+      <main className="flex-1 max-w-5xl mx-auto w-full p-4 md:p-6 flex flex-col">
+        
+        {!isWorkspace ? (
+          // --- Upload Screen ---
+          <div className="flex-1 flex flex-col items-center justify-center py-12">
+            <div className="text-center max-w-2xl">
+              <h2 className="text-4xl md:text-5xl font-extrabold mb-6 tracking-tight">
+                <span className="text-slate-100">Cinematic</span> <span className="text-transparent bg-clip-text bg-gradient-to-r from-orange-500 via-red-500 to-yellow-500">Image Effect</span>
+              </h2>
+              <p className="text-lg text-slate-400 mb-10 leading-relaxed">
+                Transform ordinary photos into cinematic masterpieces while maintaining the true identity and expressions of your loved ones.
               </p>
-            </div>
-            <button
-              onClick={() => setActiveModal('settings')}
-              className="btn-block w-full py-4 rounded-2xl text-[10px] tracking-widest"
-            >
-              Open Settings to Subscribe
-            </button>
-          </div>
-        )}
+              
+              <div 
+                onClick={() => fileInputRef.current?.click()}
+                className="
+                  group relative overflow-hidden rounded-3xl bg-slate-900 border-4 border-dashed border-slate-800 
+                  p-12 cursor-pointer transition-all hover:border-orange-500 hover:shadow-xl hover:shadow-orange-900/10 hover:-translate-y-1
+                "
+              >
+                <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div className="relative z-10 flex flex-col items-center">
+                  <div className="w-20 h-20 bg-slate-800 text-blue-500 rounded-full flex items-center justify-center text-3xl mb-6 group-hover:scale-110 group-hover:bg-slate-700 transition-all shadow-inner">
+                    <i className="fa-solid fa-cloud-arrow-up"></i>
+                  </div>
+                  <h3 className="text-2xl font-bold text-slate-200 mb-2">Upload Photo or ZIP</h3>
+                  <p className="text-slate-500">Supports images or .zip with logo.png</p>
+                </div>
+              </div>
 
-        {error === "MODEL_NOT_FOUND" && (
-          <div className="p-4 bg-red-600/20 border-2 border-white rounded-3xl animate-shake flex items-center gap-3">
-            <i className="fa-solid fa-circle-exclamation text-white"></i>
-            <p className="text-[9px] font-black text-white leading-relaxed uppercase tracking-widest">Model Restricted: Check regional availability in settings.</p>
+              <div className="mt-6">
+                  <button 
+                    onClick={handleDemoLoad}
+                    disabled={isLoadingDemo}
+                    className="text-sm font-medium text-slate-500 hover:text-orange-400 transition-colors flex items-center justify-center gap-2 mx-auto disabled:opacity-50"
+                  >
+                    {isLoadingDemo ? (
+                         <i className="fa-solid fa-circle-notch fa-spin"></i>
+                    ) : (
+                        <i className="fa-solid fa-image"></i>
+                    )}
+                    Try with Demo Photo
+                  </button>
+              </div>
+
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                className="hidden" 
+                accept="image/*,.zip,application/zip,application/x-zip-compressed"
+                onChange={handleFileUpload} 
+              />
+              
+              <div className="mt-12 grid grid-cols-3 gap-6 opacity-60">
+                <div className="flex flex-col items-center">
+                  <i className="fa-solid fa-wand-magic-sparkles text-2xl mb-2 text-slate-600"></i>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">90+ Effects</span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <i className="fa-solid fa-fingerprint text-2xl mb-2 text-slate-600"></i>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Identity Safe</span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <i className="fa-solid fa-download text-2xl mb-2 text-slate-600"></i>
+                  <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">HD Export</span>
+                </div>
+              </div>
+            </div>
+            
+            {error && (
+                <div className="mt-6 p-3 bg-red-900/20 text-red-400 text-sm rounded-lg border border-red-900/50">
+                    <i className="fa-solid fa-circle-exclamation mr-2"></i>{error}
+                </div>
+            )}
+          </div>
+        ) : (
+          // --- Workspace Screen ---
+          <div className="flex flex-col lg:flex-row gap-6 h-full">
+            
+            {/* Editor Canvas Area (Left) */}
+            <div className="flex-1 flex flex-col gap-4">
+              <div className="bg-slate-900 rounded-2xl shadow-lg border border-slate-800 overflow-hidden flex-1 relative min-h-[400px] flex items-center justify-center">
+                
+                {/* Image Container */}
+                <div className="relative max-w-full max-h-full p-4 w-full h-full flex items-center justify-center bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]">
+                   {/* If Result Exists, handle comparison */}
+                   {resultImage ? (
+                     <img 
+                       src={isComparing ? originalImage : resultImage} 
+                       alt="Workspace" 
+                       className="max-w-full max-h-full object-contain shadow-2xl rounded-lg animate-fade-in"
+                     />
+                   ) : (
+                     <img 
+                       src={originalImage} 
+                       alt="Original" 
+                       className="max-w-full max-h-full object-contain shadow-xl rounded-lg"
+                     />
+                   )}
+
+                   {/* Loading Overlay */}
+                   {isGenerating && (
+                     <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm z-20 flex flex-col items-center justify-center">
+                       <div className="w-16 h-16 border-4 border-orange-900/50 border-t-orange-500 rounded-full animate-spin mb-4"></div>
+                       <p className="text-slate-200 font-bold text-lg animate-pulse">Creating Masterpiece...</p>
+                       <p className="text-slate-500 text-sm mt-1">Applying global identity lock</p>
+                     </div>
+                   )}
+                </div>
+
+                {/* Compare Overlay (Bottom Center of Canvas) */}
+                {resultImage && !isGenerating && (
+                   <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 flex items-center gap-3 z-10">
+                    <button 
+                      onMouseDown={startCompare}
+                      onMouseUp={stopCompare}
+                      onTouchStart={startCompare}
+                      onTouchEnd={stopCompare}
+                      className="bg-slate-950/90 text-white px-5 py-2.5 rounded-full font-medium text-sm backdrop-blur hover:bg-black transition shadow-lg active:scale-95 select-none border border-slate-800"
+                    >
+                      <i className="fa-solid fa-eye mr-2"></i>Hold to Compare
+                    </button>
+                  </div>
+                )}
+                 
+                 {/* Reset Button (Top Right) */}
+                 <button 
+                    onClick={() => { setOriginalImage(null); setResultImage(null); }}
+                    className="absolute top-4 right-4 bg-slate-800/80 p-2 rounded-full text-slate-400 hover:text-red-400 hover:bg-slate-800 transition shadow-sm z-10"
+                    title="Close Image"
+                 >
+                    <i className="fa-solid fa-xmark"></i>
+                 </button>
+              </div>
+
+              {/* Custom Prompt Input */}
+              {selectedEffectId === 'custom_prompt' && (
+                <div className="bg-slate-900 rounded-2xl border border-orange-500/50 p-4 shadow-lg">
+                  <label className="block text-sm font-bold text-slate-200 mb-2">
+                    <i className="fa-solid fa-keyboard mr-2 text-orange-400"></i>
+                    Custom Prompt
+                  </label>
+                  <textarea
+                    value={customPromptText}
+                    onChange={(e) => setCustomPromptText(e.target.value)}
+                    placeholder="e.g., Add a retro filter, Remove the person in the background..."
+                    className="w-full bg-slate-800 border border-slate-700 rounded-xl p-3 text-slate-200 placeholder-slate-500 focus:outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 transition-all resize-none h-24"
+                  />
+                </div>
+              )}
+
+              {/* ACTION BAR: Generate, Download, Share (Below Image) */}
+              <div className="flex items-center gap-3">
+                 <button
+                    onClick={handleGenerate}
+                    disabled={!selectedEffectId || isGenerating}
+                    className={`
+                      flex-1 py-4 rounded-xl font-bold text-lg shadow-lg transition-all transform active:scale-[0.98] flex items-center justify-center
+                      ${!selectedEffectId || isGenerating
+                        ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700'
+                        : 'bg-gradient-to-r from-orange-500 to-pink-600 text-white hover:shadow-orange-900/50 hover:from-orange-600 hover:to-pink-700'
+                      }
+                    `}
+                  >
+                    {isGenerating ? (
+                      <i className="fa-solid fa-circle-notch fa-spin"></i>
+                    ) : (
+                      <>
+                        <i className="fa-solid fa-wand-magic-sparkles mr-2"></i>
+                        {resultImage ? 'Regenerate Art' : 'Generate Art'}
+                      </>
+                    )}
+                 </button>
+
+                 <div className="flex gap-2">
+                     <button
+                        onClick={handleDownload}
+                        disabled={!resultImage || isGenerating}
+                        className={`
+                          w-12 sm:w-auto sm:px-6 py-4 rounded-xl font-bold text-lg shadow-md transition-all flex items-center justify-center
+                          ${!resultImage || isGenerating
+                            ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700' 
+                            : 'bg-slate-900 text-slate-200 border border-slate-700 hover:bg-slate-800 hover:text-orange-500 hover:border-orange-500/50'
+                          }
+                        `}
+                        title="Download Image"
+                     >
+                       <i className="fa-solid fa-download sm:mr-2"></i>
+                       <span className="hidden sm:inline">Download</span>
+                     </button>
+                     
+                     <button
+                        onClick={handleShare}
+                        disabled={!resultImage || isGenerating}
+                        className={`
+                          w-12 sm:w-auto sm:px-6 py-4 rounded-xl font-bold text-lg shadow-md transition-all flex items-center justify-center
+                          ${!resultImage || isGenerating
+                            ? 'bg-slate-800 text-slate-600 cursor-not-allowed border border-slate-700' 
+                            : 'bg-slate-900 text-slate-200 border border-slate-700 hover:bg-slate-800 hover:text-blue-400 hover:border-blue-500/50'
+                          }
+                        `}
+                        title="Share Image"
+                     >
+                       <i className="fa-solid fa-share-nodes sm:mr-2"></i>
+                       <span className="hidden sm:inline">Share</span>
+                     </button>
+                 </div>
+              </div>
+
+              {/* Error Message */}
+              {error === "QUOTA_EXCEEDED" ? (
+                  <div className="p-4 bg-red-900/20 border border-red-900/50 text-red-400 rounded-xl flex flex-col items-start gap-2 animate-shake">
+                    <div className="flex items-center gap-2 font-bold">
+                        <i className="fa-solid fa-triangle-exclamation text-lg"></i>
+                        <span>Generation Failed: Quota Exceeded</span>
+                    </div>
+                    <p className="text-sm">You have exceeded your current API quota.</p>
+                    <a 
+                        href="https://aistudio.google.com/app/apikey" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="mt-2 bg-red-900/40 hover:bg-red-900/60 text-red-200 px-4 py-2 rounded-lg text-xs font-bold transition-colors border border-red-800"
+                    >
+                        Renew Quota / Get API Key
+                    </a>
+                  </div>
+              ) : error && (
+                <div className="p-4 bg-red-900/20 border border-red-900/50 text-red-400 rounded-xl flex items-center animate-shake">
+                   <i className="fa-solid fa-triangle-exclamation mr-3 text-lg"></i>
+                   <div>
+                     <p className="font-bold text-sm">Generation Failed</p>
+                     <p className="text-xs mt-1">{error}</p>
+                   </div>
+                </div>
+              )}
+            </div>
+
+            {/* Tools Sidebar (Right) */}
+            <div className="w-full lg:w-80 flex flex-col gap-4">
+              <div className="bg-slate-900 rounded-2xl border border-slate-800 p-5 flex-1 flex flex-col shadow-lg">
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="font-bold text-slate-200">Select Effect</h3>
+                  <span className="text-xs bg-orange-900/50 text-orange-400 px-2 py-1 rounded-full font-medium border border-orange-900">
+                    {EFFECTS_LIBRARY.length}
+                  </span>
+                </div>
+
+                {/* 3-Column Grid for Effects */}
+                <div className="grid grid-cols-3 gap-2 overflow-y-auto pr-1 custom-scrollbar max-h-[500px] lg:max-h-[calc(100vh-250px)] content-start">
+                  {EFFECTS_LIBRARY.map((effect) => (
+                    <EffectCard 
+                      key={effect.id}
+                      effect={effect}
+                      isSelected={selectedEffectId === effect.id}
+                      onClick={() => setSelectedEffectId(effect.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+              
+              {/* MSME Badge (Small) */}
+              <div className="bg-slate-900 rounded-xl p-3 flex items-center justify-center gap-3 text-slate-500 text-xs font-mono border border-slate-800">
+                 <img src="https://upload.wikimedia.org/wikipedia/commons/5/55/Emblem_of_India.svg" alt="India" className="h-6 opacity-40 grayscale" />
+                 <div>
+                   <div className="font-bold text-slate-400">ASKFORWRITE DIGITAL</div>
+                   <div>{APP_CONFIG.msmeRegistration}</div>
+                 </div>
+              </div>
+            </div>
+
           </div>
         )}
       </main>
 
-      {/* Pages Content Modals */}
-      <InfoModal isOpen={activeModal === 'about'} onClose={() => setActiveModal(null)} title="About Us">
-        <div className="space-y-6">
-          <div className="p-4 bg-white/5 border border-white/20 rounded-2xl">
-            <p className="font-black text-orange-500 text-[10px] uppercase tracking-widest mb-1">UDYAM REGISTRATION</p>
-            <p className="text-white font-black">{APP_CONFIG.msmeRegistration}</p>
-          </div>
-
-          <section className="space-y-2">
-            <h3 className="font-black text-white text-[12px] uppercase">Who We Are</h3>
-            <p>afwPixelAi is a cutting-edge image editing platform powered by <strong>Askforwrite Digital</strong>. We bridge the gap between complex AI generation and intuitive mobile creativity.</p>
-          </section>
-
-          <section className="space-y-2">
-            <h3 className="font-black text-white text-[12px] uppercase">Core Features</h3>
-            <ul className="list-disc list-inside space-y-2 text-slate-300">
-              <li><strong className="text-white">AI Image Restoration:</strong> Revitalize old, blurry, or damaged photos with high-fidelity reconstruction using Imagen 3.0 technology.</li>
-              <li><strong className="text-white">Artistic Style Effects:</strong> Transform portraits into Cinematic masterpieces, Adventure-themed scenes, or high-end Beauty portraits.</li>
-              <li><strong className="text-white">Identity Lock:</strong> Our proprietary layering ensures the subject's original identity and age remain unchanged while the environment transforms.</li>
-            </ul>
-          </section>
-
-          <section className="space-y-2">
-            <h3 className="font-black text-white text-[12px] uppercase">Innovation</h3>
-            <p>We leverage the latest Google Gemini & Imagen models to provide professional-grade aesthetic enhancements directly to your device.</p>
-          </section>
-        </div>
-      </InfoModal>
-
-      <InfoModal isOpen={activeModal === 'policy'} onClose={() => setActiveModal(null)} title="Privacy & Terms">
-        <div className="space-y-4 text-[13px]">
-          <section className="space-y-2">
-            <h3 className="font-black text-white uppercase">Privacy Policy</h3>
-            <p>Your privacy is paramount. afwPixelAi operates on a professional "Edit and Port" model:</p>
-            <ul className="list-disc list-inside space-y-1 text-slate-400">
-              <li>We do not store your original or edited images on our servers permanentely.</li>
-              <li>Image processing is conducted securely via Google Cloud AI APIs.</li>
-              <li>No personal identifying information is collected beyond app-specific settings.</li>
-            </ul>
-          </section>
-
-          <section className="space-y-2">
-            <h3 className="font-black text-white uppercase">Terms of Use</h3>
-            <p>By using afwPixelAi, you agree to:</p>
-            <ul className="list-disc list-inside space-y-1 text-slate-400">
-              <li>Use generated art for lawful purposes only.</li>
-              <li>Acknowledge that AI-generated output is creative and may vary in results.</li>
-              <li>Not use the tool for creating misleading or harmful content.</li>
-            </ul>
-          </section>
-
-          <section className="space-y-2">
-            <h3 className="font-black text-white uppercase">Disclaimer</h3>
-            <p>This is an AI-driven image editing application. While we strive for perfection via "Identity Lock", creative interpretations by the AI models are beyond our direct control. Images are processed in real-time and results depend on input quality.</p>
-          </section>
-        </div>
-      </InfoModal>
-
-      <InfoModal isOpen={activeModal === 'contact'} onClose={() => setActiveModal(null)} title="Contact Us">
-        <div className="space-y-8 py-4">
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-black text-xl shadow-xl"><i className="fa-solid fa-envelope"></i></div>
-              <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Email Support</p>
-                <a href={`mailto:${APP_CONFIG.email}`} className="text-white font-black hover:text-orange-500 transition-colors uppercase tracking-wider">{APP_CONFIG.email}</a>
-              </div>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center text-black text-xl shadow-xl"><i className="fa-solid fa-globe"></i></div>
-              <div>
-                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Visit Website</p>
-                <a href={`https://${APP_CONFIG.website}`} target="_blank" className="text-white font-black hover:text-orange-500 transition-colors uppercase tracking-wider">{APP_CONFIG.website}</a>
-              </div>
-            </div>
-          </div>
-          <div className="p-6 bg-white/5 border border-white/20 rounded-3xl text-center">
-            <p className="text-[11px] text-slate-300 italic">Expected response time within 24-48 business hours.</p>
-          </div>
-        </div>
-      </InfoModal>
-
-      <SubscriptionModal isOpen={activeModal === 'subscription'} onClose={() => setActiveModal(null)} freeGenCount={freeGenCount} />
-      <DownloadModal isOpen={activeModal === 'download'} onClose={() => setActiveModal(null)} onDownload={handleDownload} />
-      <PaymentModal isOpen={activeModal === 'payment'} onClose={() => setActiveModal(null)} onUpgrade={() => { setIsFullAccess(true); localStorage.setItem("FULL_ACCESS", "true"); setActiveModal(null); }} />
-
-      <footer className="px-6 py-12 text-center text-white text-[10px] bg-black border-t-2 border-white mt-auto space-y-8">
-        <div className="font-black uppercase tracking-[0.4em] text-white flex items-center justify-center gap-3">
-          <span className="w-6 h-[1px] bg-white/30"></span>
-          App Powered by {APP_CONFIG.poweredBy}
-          <span className="w-6 h-[1px] bg-white/30"></span>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2 max-w-xs mx-auto">
-          <button onClick={() => setActiveModal('about')} className="py-3 border border-white/30 rounded-xl font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all">About</button>
-          <button onClick={() => setActiveModal('policy')} className="py-3 border border-white/30 rounded-xl font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all">Policy</button>
-          <button onClick={() => setActiveModal('contact')} className="py-3 border border-white/30 rounded-xl font-black uppercase tracking-widest hover:bg-white hover:text-black transition-all">Contact</button>
-        </div>
-
-        <div className="flex items-center justify-center gap-8 text-2xl">
-          <a href="https://www.facebook.com/ask4write/" target="_blank" rel="noopener noreferrer" className="text-white hover:scale-125 transition-all"><i className="fa-brands fa-facebook"></i></a>
-          <a href="https://www.instagram.com/ask4write/" target="_blank" rel="noopener noreferrer" className="text-white hover:scale-125 transition-all"><i className="fa-brands fa-instagram"></i></a>
-          <a href="https://x.com/info_ask4write" target="_blank" rel="noopener noreferrer" className="text-white hover:scale-125 transition-all"><i className="fa-brands fa-twitter"></i></a>
-          <a href="https://www.linkedin.com/company/104845161/admin/dashboard/" target="_blank" rel="noopener noreferrer" className="text-white hover:scale-125 transition-all"><i className="fa-brands fa-linkedin"></i></a>
-          <a href="https://in.pinterest.com/vipulchobisa/" target="_blank" rel="noopener noreferrer" className="text-white hover:scale-125 transition-all"><i className="fa-brands fa-pinterest"></i></a>
-          <a href="https://www.whatsapp.com/channel/0029VaCXb770AgW3UP7Iue2A" target="_blank" rel="noopener noreferrer" className="text-white hover:scale-125 transition-all"><i className="fa-brands fa-whatsapp"></i></a>
-        </div>
-
-        <p className="text-slate-500 font-black tracking-widest uppercase text-[8px]">© 2026 Askforwrite Digital • All Rights Reserved</p>
-      </footer>
+      <Footer />
     </div>
   );
 };

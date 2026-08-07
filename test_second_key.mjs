@@ -1,0 +1,27 @@
+import { GoogleGenAI } from "@google/genai";
+const ai = new GoogleGenAI({ apiKey: "AIzaSyC8qFZjMvcd3hXQTaArcWXkZn0eLGbUKQQ" });
+
+async function run() {
+  const modelsToTry = [
+      'gemini-2.5-flash-image'
+  ];
+  
+  for (const m of modelsToTry) {
+      try {
+        console.log("Trying", m);
+        const response = await ai.models.generateContent({
+            model: m,
+            contents: 'A picture of a cat',
+            config: {
+                responseModalities: ["IMAGE"],
+            }
+        });
+        const data = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData)?.inlineData;
+        console.log(m, "generateContent WORKED! Has image:", !!data);
+        break;
+      } catch (e) {
+        console.error(m, "generateContent failed:", e.message);
+      }
+  }
+}
+run();
