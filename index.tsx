@@ -142,10 +142,8 @@ const EFFECTS_LIBRARY = [
 
 // --- AI Service ---
 
-const DEFAULT_GEMINI_KEY = "AIzaSyC8qFZjMvcd3hXQTaArcWXkZn0eLGbUKQQ";
-
 const generateAiImage = async (originalBase64: string, effectId: string, customPromptText?: string): Promise<string> => {
-  const apiKey = localStorage.getItem('gemini_api_key') || process.env.API_KEY || process.env.GEMINI_API_KEY || DEFAULT_GEMINI_KEY;
+  const apiKey = localStorage.getItem('gemini_api_key') || process.env.API_KEY || process.env.GEMINI_API_KEY || "";
   
   const effect = EFFECTS_LIBRARY.find(e => e.id === effectId);
   if (!effect) throw new Error("Effect not found");
